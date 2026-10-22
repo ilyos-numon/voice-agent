@@ -1,6 +1,7 @@
 import time
 
 from app.config import Settings
+from app.pipeline.bm25 import BM25Retriever
 from app.pipeline.stt_whisper import WhisperSTT
 from app.pipeline.stubs import KeywordRetriever, PassthroughSTT, SilentTTS, TemplateLLM
 from app.pipeline.tts_supertonic import SupertonicTTS
@@ -53,8 +54,17 @@ def build_tts(settings: Settings) -> TTS:
     raise ValueError(f"unknown TTS_BACKEND: {backend}")
 
 
+def build_retriever(settings: Settings) -> Retriever:
+    backend = settings.retriever_backend
+    if backend == "keyword":
+        return KeywordRetriever(settings.faq_path)
+    if backend == "bm25":
+        return BM25Retriever.from_path(settings.faq_path)
+    raise ValueError(f"unknown RETRIEVER_BACKEND: {backend}")
+
+
 def build_pipeline(settings: Settings) -> Pipeline:
     mode = settings.pipeline_mode
     if mode != "stub":
         raise ValueError(f"unknown PIPELINE_MODE: {mode}")
-    return Pipeline(build_stt(settings), KeywordRetriever(settings.faq_path), TemplateLLM(), build_tts(settings))
+    return Pipeline(build_stt(settings), build_retriever(settings), TemplateLLM(), build_tts(settings))
