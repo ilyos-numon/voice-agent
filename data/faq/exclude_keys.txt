@@ -1,0 +1,2 @@
+# 용도: scripts/prepare_faq.py가 faq.jsonl에서 뺄 행의 key 목록 (sanitize 검사에 걸린 행 등).
+# 추가 방법: faq.jsonl에서 해당 행의 "key" 값(12자리)을 한 줄에 하나씩 적고 scripts/prepare_data.sh를 다시 실행한다.
