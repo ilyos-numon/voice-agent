@@ -28,3 +28,4 @@ __pycache__/
 data/raw/
 .DS_Store
 *.log
+bench/audio/
