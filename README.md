@@ -12,6 +12,12 @@ Default (stub STT/TTS, silent audio, no model download):
 uv sync --extra dev && uv run uvicorn app.main:app --host localhost --port 8765
 ```
 
+Streaming answer (one SSE `audio` event per sentence, each a complete WAV; events `meta` → `audio`×N → `done`, with `first_audio_ms` in `done.timings`):
+
+```sh
+curl -N -X POST localhost:8765/api/ask-stream -H 'Content-Type: application/json' -d '{"text":"주민등록등본 발급"}'
+```
+
 Real Korean speech in and out (CPU only, no torch):
 
 ```sh
@@ -69,6 +75,13 @@ On this machine (Apple Silicon, CPU):
 
 - STT (Whisper small int8): model load about 10 s; a 3.7 s spoken question is recognized in about 2.7 s `stt_ms`. Reproduce by starting the server with `STT_BACKEND=whisper` and reading `timings.stt_ms` of `POST /api/ask-audio` (body: the fixture WAV), or the "듣기" value on the demo page.
 - TTS (Supertonic 3): model load about 9.9 s, one Korean sentence `tts_ms` about 1.5 s. Reproduce with `TTS_BACKEND=supertonic` and `timings.tts_ms` of `POST /api/ask`, or the "말하기" value on the demo page.
+- Sentence-streaming TTS (Supertonic 3, `/api/ask-stream`): the first sentence's audio is ready long before the whole answer is synthesized. `first_audio_ms` = time from request start until the first sentence WAV is ready; full `tts_ms` = sum of per-sentence synthesis.
+
+| answer id | chars | sentences | full tts_ms (A) | first_audio_ms (B) | B / A |
+|-----------|-------|-----------|-----------------|--------------------|-------|
+| faq-020 | 577 | 8 | 14342.5 | 895.8 | 0.062 |
+
+Reproduce (in-process, real model): `uv run --extra tts --extra stt pytest tests/model/test_tts_stream.py -q -s` (prints `full_tts_ms=… first_audio_ms=… ratio=… sentences=…`). Over HTTP (server in the full bm25 real-model mode above, then `uv run pytest tests/e2e/test_stream_real.py -q`): `/api/ask` `tts_ms` 13688.5, first `audio` event received at 892.0 ms, ratio 0.065.
 
 ## Measured retrieval
 
