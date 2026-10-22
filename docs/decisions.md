@@ -41,3 +41,43 @@ Status: Accepted
 3. 파이프라인을 Protocol로 나눠 두면 스텁을 실제 모델로 하나씩 바꿀 수 있다.
 
 이 결정이 틀리게 되는 경우: 선택한 TTS가 3.11을 지원하지 않게 되거나, 지연시간 요구 때문에 Python 밖 런타임이 필요해질 때.
+
+## ADR-002: TTS 엔진: Supertonic 3 (CPU 우선)
+
+Date: 2026-10-22
+Status: Accepted (ADR-001의 "TTS 1순위 CosyVoice 2, 2순위 XTTS-v2"를 대체한다)
+
+### Context
+
+개발·데모 머신은 GPU가 없는 arm64 macOS(CPU-only, RAM 16 GB)다. 이전 TTS 후보 순위는 GPU를 전제로 했다. 키오스크 응답 목표는 "한국어 1문장 합성 3초 이내"이고, 설치는 torch 없이 `uv sync --extra tts` 한 번으로 끝나야 한다.
+
+### Options
+
+| 후보 | torch | 모델 크기 | 한국어 | CPU 1문장 | 라이선스 | 판정 |
+|---|---|---|---|---|---|---|
+| Supertonic 3 (`supertonic` 1.3.1, ONNX) | 불필요 | ≈ 415 MB | 공식 지원(`ko`) | 실측 ≈ 1.6 s | 가중치 OpenRAIL-M, 코드 MIT | 채택 |
+| MeloTTS | 필요 | 208 MB | 지원 | RTF < 1 추정 | MIT | 제외 (3.11 arm64 설치 불가·고정 핀 다수) |
+| CosyVoice 2 | 필요 | ≈ 4.9 GB | 지원 | 수십 초 추정 | Apache-2.0 | 제외 (CPU 비현실적, 공식 pip 없음) |
+| XTTS-v2 | 필요 | ≈ 2.1 GB | 지원 | 5~15 s 추정 | 코드 MPL-2.0, 가중치 CPML(비상업) | 제외 (공개 포트폴리오 부적합) |
+| Piper (`ko_KR/kss`) | 불필요 | 수십 MB | 1 음색 | 매우 빠름 | 코드 GPL-3.0, 음성 CC BY-NC-SA 추정 | 예비 |
+
+### Decision
+
+`TTS_BACKEND=supertonic`이면 `app/pipeline/tts_supertonic.py`의 `SupertonicTTS`(음색 `TTS_VOICE`, 기본 `F1`, `lang="ko"`, `total_steps=8`)를 쓴다. 기본값은 `TTS_BACKEND=stub`(`SilentTTS`)이고, stub 경로는 `supertonic`을 import하지 않는다.
+
+### Why
+
+1. wheel만으로 설치되고 torch가 필요 없다 (의존성 onnxruntime·numpy·soundfile·huggingface-hub).
+2. 한국어를 공식 지원한다.
+3. CPU-only 16 GB 머신에서 실측 1문장 합성이 3초 이내다 (S2 실측: 1문장 1.6 s, 모델 로드 9.9 s).
+4. 다운로드 크기가 후보 중 작은 편이다.
+
+라이선스:
+- 모델 가중치: OpenRAIL-M (사용 제한 조항 있음, 상업 이용 가능).
+- 코드: MIT (설치된 패키지 메타데이터 `License-Expression` 값. `License` 필드는 비어 있음).
+
+모델 캐시: `~/.cache/supertonic3/` 최상위에 ONNX 4개, 실측 385 MB (`SUPERTONIC_CACHE_DIR`로 변경 가능). 첫 실행 시 자동 다운로드.
+
+원 개발사 GitHub 저장소는 2026년에 보관(archived) 처리됐고, 가중치는 `supertone-oss-archive/supertonic-3`로 미러돼 있다. 패키지가 고정한 원 모델 저장소 `Supertone/supertonic-3`는 2026-10-22 기준 접근 가능하다.
+
+이 결정이 틀리게 되는 경우: 원 모델 저장소와 미러 모두 접근할 수 없게 될 때, CPU에서 1문장 합성이 3초를 넘게 될 때, GPU를 도입해 CosyVoice 2 같은 대형 모델이 현실적이 될 때(그때 CosyVoice 2 재검토).

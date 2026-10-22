@@ -2,6 +2,7 @@ import time
 
 from app.config import Settings
 from app.pipeline.stubs import KeywordRetriever, PassthroughSTT, SilentTTS, TemplateLLM
+from app.pipeline.tts_supertonic import SupertonicTTS
 from app.pipeline.types import LLM, STT, TTS, AskResult, Retriever
 
 
@@ -33,8 +34,17 @@ class Pipeline:
         return AskResult(transcript, answer, source, timings, audio_wav)
 
 
+def build_tts(settings: Settings) -> TTS:
+    backend = settings.tts_backend
+    if backend == "stub":
+        return SilentTTS()
+    if backend == "supertonic":
+        return SupertonicTTS(voice=settings.tts_voice)
+    raise ValueError(f"unknown TTS_BACKEND: {backend}")
+
+
 def build_pipeline(settings: Settings) -> Pipeline:
     mode = settings.pipeline_mode
     if mode != "stub":
         raise ValueError(f"unknown PIPELINE_MODE: {mode}")
-    return Pipeline(PassthroughSTT(), KeywordRetriever(settings.faq_path), TemplateLLM(), SilentTTS())
+    return Pipeline(PassthroughSTT(), KeywordRetriever(settings.faq_path), TemplateLLM(), build_tts(settings))
