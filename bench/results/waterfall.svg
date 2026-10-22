@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="242" viewBox="0 0 900 242" font-family="sans-serif">
+<rect x="0" y="0" width="900" height="242" fill="#ffffff"/>
+<text x="80" y="28" font-size="16" font-weight="bold">질문 1건 응답 시간 (중앙값, 공개 FAQ 50문항 × 3회)</text>
+<text x="70" y="93.0" font-size="14" text-anchor="end">before</text>
+<rect x="80.0" y="70" width="0.0" height="36" fill="#4e79a7" stroke="#ffffff" stroke-width="1"/>
+<text x="80.0" y="66" font-size="10" fill="#333333">STT 0.0s</text>
+<rect x="80.0" y="70" width="0.0" height="36" fill="#f28e2b" stroke="#ffffff" stroke-width="1"/>
+<text x="144.0" y="66" font-size="10" fill="#333333">검색 0.0s</text>
+<rect x="80.0" y="70" width="0.0" height="36" fill="#59a14f" stroke="#ffffff" stroke-width="1"/>
+<text x="201.0" y="66" font-size="10" fill="#333333">LLM 0.0s</text>
+<rect x="80.0" y="70" width="540.2" height="36" fill="#e15759" stroke="#ffffff" stroke-width="1"/>
+<text x="350.1" y="92.0" font-size="12" text-anchor="middle" fill="#ffffff">TTS 5.0s</text>
+<text x="628.2" y="93.0" font-size="13">= 5.0s</text>
+<text x="70" y="169.0" font-size="14" text-anchor="end">after</text>
+<rect x="80.0" y="146" width="0.0" height="36" fill="#4e79a7" stroke="#ffffff" stroke-width="1"/>
+<text x="80.0" y="142" font-size="10" fill="#333333">STT 0.0s</text>
+<rect x="80.0" y="146" width="0.0" height="36" fill="#f28e2b" stroke="#ffffff" stroke-width="1"/>
+<text x="144.0" y="142" font-size="10" fill="#333333">검색 0.0s</text>
+<rect x="80.0" y="146" width="0.0" height="36" fill="#59a14f" stroke="#ffffff" stroke-width="1"/>
+<text x="201.0" y="142" font-size="10" fill="#333333">LLM 0.0s</text>
+<rect x="80.0" y="146" width="94.4" height="36" fill="#e15759" stroke="#ffffff" stroke-width="1"/>
+<text x="127.2" y="168.0" font-size="12" text-anchor="middle" fill="#ffffff">TTS 첫 문장 0.9s</text>
+<rect x="174.4" y="146" width="490.9" height="36" fill="#ffffff" stroke="#e15759" stroke-width="1.5" stroke-dasharray="5,3"/>
+<text x="419.8" y="168.0" font-size="12" text-anchor="middle" fill="#333333">나머지 스트리밍 4.5s</text>
+<text x="673.3" y="169.0" font-size="13">= 첫 음성까지 0.9s</text>
+<line x1="174.4" y1="140" x2="174.4" y2="188" stroke="#333333" stroke-width="1.5"/>
+<line x1="80" y1="204" x2="730" y2="204" stroke="#333333"/>
+<line x1="80.0" y1="204" x2="80.0" y2="209" stroke="#333333"/>
+<text x="80.0" y="222" font-size="11" text-anchor="middle">0</text>
+<line x1="188.3" y1="204" x2="188.3" y2="209" stroke="#333333"/>
+<text x="188.3" y="222" font-size="11" text-anchor="middle">1</text>
+<line x1="296.7" y1="204" x2="296.7" y2="209" stroke="#333333"/>
+<text x="296.7" y="222" font-size="11" text-anchor="middle">2</text>
+<line x1="405.0" y1="204" x2="405.0" y2="209" stroke="#333333"/>
+<text x="405.0" y="222" font-size="11" text-anchor="middle">3</text>
+<line x1="513.3" y1="204" x2="513.3" y2="209" stroke="#333333"/>
+<text x="513.3" y="222" font-size="11" text-anchor="middle">4</text>
+<line x1="621.7" y1="204" x2="621.7" y2="209" stroke="#333333"/>
+<text x="621.7" y="222" font-size="11" text-anchor="middle">5</text>
+<line x1="730.0" y1="204" x2="730.0" y2="209" stroke="#333333"/>
+<text x="730.0" y="222" font-size="11" text-anchor="middle">6</text>
+<text x="742" y="222" font-size="11">(s)</text>
+</svg>
