@@ -1,8 +1,16 @@
+from collections.abc import Callable
 from typing import Any
 
 from app.pipeline.wav import pcm16_to_wav
 
 INSTALL_HINT = "TTS_BACKEND=supertonic requires: uv sync --extra dev --extra tts"
+
+
+def sanitize_tts_text(text: str, is_supported: Callable[[str], bool]) -> str:
+    """Replace characters the TTS cannot speak with spaces and collapse whitespace."""
+    verdict = {ch: is_supported(ch) for ch in set(text)}
+    cleaned = "".join(ch if verdict[ch] else " " for ch in text)
+    return " ".join(cleaned.split())
 
 
 class SupertonicTTS:
@@ -23,9 +31,14 @@ class SupertonicTTS:
         if warm_up:
             self.synthesize("안녕하세요")
 
+    def _is_supported(self, ch: str) -> bool:
+        is_valid, _unsupported = self._tts.model.text_processor.validate_text(ch)
+        return bool(is_valid)
+
     def synthesize(self, text: str) -> bytes:
         import numpy as np
 
+        text = sanitize_tts_text(text, self._is_supported)
         if not text.strip():
             silence = np.zeros(self.sample_rate // 10, dtype="<i2")
             return pcm16_to_wav(silence.tobytes(), self.sample_rate, 1)

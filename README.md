@@ -4,6 +4,41 @@ Voice assistant for a self-service civic kiosk. Speech in, RAG-grounded answer, 
 
 Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retrieval over a public civil-service FAQ (575 entries). The LLM is still a stub. Rebuilt on public data.
 
+## Latency (before / after)
+
+![before/after waterfall](bench/results/waterfall.svg)
+
+| 지표 | before (/api/ask) | after (/api/ask-stream) | 비고 |
+|---|---|---|---|
+| 첫 음성까지 (p50 / p95) | 4986.1 / 8220.0 ms | 871.1 / 2214.4 ms | 서버 측. before 는 응답 완료 = total_ms |
+| 전체 응답 (p50 / p95) | 4986.1 / 8220.0 ms | 5402.4 / 11080.3 ms | total_ms (after 는 마지막 문장 WAV 까지) |
+| STT (p50) | 0.0 ms | 0.0 ms | 글자 입력, STT 미포함 |
+| 검색 (p50) | 0.0 ms | 0.0 ms | BM25 |
+| LLM (p50) | 0.0 ms | 0.0 ms | 스텁 |
+| TTS (p50) | 4986.1 ms | 5394.1 ms | after 는 문장별 합 |
+| TTS RTF (동시 1) | 0.18 | 0.19 | tts_ms / 음성 길이 |
+| 동시 4 요청 | 미측정 | 미측정 | 이번 범위 밖 |
+| 검색 적중 (top1 = 질문 id) | 150/150 | 150/150 | |
+| 요청 수 (오류) | 150 (0) | 150 (0) | 50 질문 × 3 회 |
+
+클라이언트 측 첫 음성 p50: before 4991.9 ms / after 873.5 ms
+
+실행 구성: 글자 입력(STT 미사용), 검색 BM25(`RETRIEVER_BACKEND=bm25`, 공개 FAQ 575건), LLM 템플릿 스텁, TTS Supertonic 3(`TTS_BACKEND=supertonic`), Apple Silicon CPU, 동시 1요청. `/health` 의 `pipeline_mode` 가 `"stub"` 로 기록되지만, 이는 `app/config.py` 의 기본값이자 `build_pipeline` 이 받는 유일한 값(`app/pipeline/runner.py`)일 뿐이고 실제 STT·검색·TTS 백엔드는 위 `*_BACKEND` 환경변수로 따로 고른다. LLM 만 스텁이다.
+
+검색·LLM·STT 의 `0.0 ms` 는 기록 단위가 0.1 ms(소수 1자리 반올림)라서 나온 값이다. BM25 검색은 300개 레코드 중 대부분이 0.0 또는 0.1 ms(p50 < 0.1 ms), 최댓값 3.4 ms(`bench/results/*.jsonl` 의 `stages.retrieve_ms`).
+
+원본 환경 (참고, 비교 불가): 10.52 s → 7.40 s. 다른 하드웨어·다른 모델·실사용 질문이라 위 표와 비교할 수 없다. 출처 docs/vision.md.
+
+무엇을 바꿨나: 답변 전체를 한 번에 합성하던 `/api/ask` 대신, 문장 단위로 합성해 첫 문장 WAV 부터 보내는 `/api/ask-stream`(SSE, ADR-005). 측정 설계는 `docs/decisions.md` ADR-006.
+
+```sh
+uv sync --extra dev --extra tts --extra stt
+STT_BACKEND=whisper TTS_BACKEND=supertonic RETRIEVER_BACKEND=bm25 FAQ_PATH=data/faq/faq.jsonl uv run --extra tts --extra stt uvicorn app.main:app --host localhost --port 8765 &
+./bench/run.sh --config before     # 질문 50개 × 3회, 약 15분
+./bench/run.sh --config after
+./bench/summarize.sh               # bench/results/summary.md + waterfall.svg
+```
+
 ## Run
 
 Default (stub STT/TTS, silent audio, no model download):
@@ -82,6 +117,8 @@ On this machine (Apple Silicon, CPU):
 | faq-020 | 577 | 8 | 14342.5 | 895.8 | 0.062 |
 
 Reproduce (in-process, real model): `uv run --extra tts --extra stt pytest tests/model/test_tts_stream.py -q -s` (prints `full_tts_ms=… first_audio_ms=… ratio=… sentences=…`). Over HTTP (server in the full bm25 real-model mode above, then `uv run pytest tests/e2e/test_stream_real.py -q`): `/api/ask` `tts_ms` 13688.5, first `audio` event received at 892.0 ms, ratio 0.065.
+
+For the 50-question before/after table see "Latency (before / after)" above.
 
 ## Measured retrieval
 
