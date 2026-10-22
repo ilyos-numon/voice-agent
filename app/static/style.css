@@ -71,11 +71,15 @@ h1 { font-size: 40px; margin: 0 0 24px; }
 #result[data-state="recording"]::before { content: "듣고 있어요… 다시 누르면 전송됩니다."; color: #ff9aa8; }
 #result[data-state="transcribing"]::before { content: "들은 말을 글자로 옮기고 있어요…"; color: #9fb0cc; }
 #result[data-state="error"]::before { content: "다시 시도해 주세요."; color: #ff9aa8; }
-#result:not([data-state="answered"]) > * { display: none; }
+#result:not([data-state="answered"]):not([data-state="speaking"]) > * { display: none; }
 
 #transcript { color: #9fd8ff; }
 #answer { font-size: 28px; font-weight: 600; }
 #source, #timings { color: #c3cddc; font-size: 20px; }
+#first-audio { color: #ffd23f; font-size: 20px; }
+#sentences { margin: 0 0 16px; padding-left: 28px; color: #c3cddc; font-size: 20px; }
+#sentences li.playing { color: #ffd23f; font-weight: 600; }
+#sentences li.played { color: #7d8aa3; }
 #audio { width: 100%; margin-top: 8px; }
 
 #error {
