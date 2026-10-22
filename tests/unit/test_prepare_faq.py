@@ -128,6 +128,7 @@ def test_xlsx_two_sheets_merge_ids_seed_first(pf: ModuleType, tmp_path: Path) ->
     assert stats["dropped"] == {
         "empty": 1,
         "short": 1,
+        "scenario": 0,
         "pattern": 1,
         "exact_dup": 1,
         "near_dup": 0,
@@ -149,6 +150,21 @@ def test_near_duplicate_dropped(pf: ModuleType, tmp_path: Path) -> None:
     assert code == 0
     assert [r["question"] for r in rows[5:]] == ["어린이 예방접종 일정"]
     assert json.loads(stats_path.read_text(encoding="utf-8"))["dropped"]["near_dup"] == 2
+
+
+def test_scenario_answer_dropped(pf: ModuleType, tmp_path: Path) -> None:
+    rows_in = [
+        _row(1, "행정", "동 주민센터 위치", "kakao|예시|동을 입력하세요"),
+        _row(2, "교통", "버스 노선 변경", "버스 노선 안내 답변입니다."),
+    ]
+    _write_xlsx(tmp_path / RAW_NAME, {"전체": rows_in})
+    stats_path = tmp_path / "stats.json"
+    code, rows = _run(pf, tmp_path, "--stats-json", str(stats_path))
+    assert code == 0
+    assert [r["question"] for r in rows[5:]] == ["버스 노선 변경"]
+    assert rows[5]["id"] == "faq-006"
+    assert all("|" not in str(r["answer"]) for r in rows)
+    assert json.loads(stats_path.read_text(encoding="utf-8"))["dropped"]["scenario"] == 1
 
 
 def test_exclude_keys_dropped(pf: ModuleType, tmp_path: Path) -> None:

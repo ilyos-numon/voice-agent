@@ -90,8 +90,9 @@ _PHONE_RE = re.compile(r"(\(?0\d{1,2}\)?[-.\s]?)?\d{3,4}[-.\s]\d{4}")
 _PHONE_MARK_RE = re.compile(r"☎|TEL|Tel|tel\.?")
 _SPACE_RE = re.compile(r"\s+")
 _IPV4_RE = re.compile(r"([0-9]{1,3}\.){3}[0-9]{1,3}")
+_SCENARIO_RE = re.compile(r"^[A-Za-z0-9_]+\|")
 
-DROP_REASONS = ("empty", "short", "pattern", "exact_dup", "near_dup", "excluded")
+DROP_REASONS = ("empty", "short", "scenario", "pattern", "exact_dup", "near_dup", "excluded")
 
 
 class DownloadError(Exception):
@@ -386,6 +387,9 @@ def normalize(
                 continue
             if len(q) < 2 or len(a) < 5:
                 dropped["short"] += 1
+                continue
+            if _SCENARIO_RE.match(a) or "|" in a:
+                dropped["scenario"] += 1
                 continue
             if _IPV4_RE.search(raw_q) or _IPV4_RE.search(raw_a):
                 dropped["pattern"] += 1

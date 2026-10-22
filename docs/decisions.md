@@ -158,7 +158,7 @@ Status: Accepted (ADR-001의 "검색 (후속): rank-bm25"를 직접 구현 BM25 
 
 `RETRIEVER_BACKEND=bm25`이면 `app/pipeline/bm25.py`의 `BM25Retriever`(k1=1.2, b=0.75)가 `FAQ_PATH`(공개 데이터는 `data/faq/faq.jsonl`)를 읽어 **질문 필드만** 색인한다. 기본값은 `RETRIEVER_BACKEND=keyword`(기존 `KeywordRetriever` + 합성 5건)로, TTS·STT와 같은 "기본 stub, 실제는 환경변수" 관례와 기존 테스트를 유지한다.
 
-데이터는 `./scripts/prepare_data.sh`가 만든다: 원본 XLSX 다운로드 → 정규화(`scripts/prepare_faq.py`) → 평가 세트 생성 → 평가. 원본에 질문 문장 열이 없어 질문 필드는 `인텐트명`(2어절 안팎의 주제명)이다. 전처리: 답변에서 HTML·이메일·URL·전화번호 제거, 담당자·연락처·링크 열 미출력, IPv4 형태 포함 행 제외, 정확·근사(질문 bigram Jaccard ≥ 0.6) 중복 제거, 익명화 검사에 걸린 행은 `data/faq/exclude_keys.txt`에 key로 제외. 합성 5건은 faq-001~005로 맨 앞에 그대로 둔다 — 기존 단위·E2E 테스트와 음성 픽스처가 faq-001을 기준으로 하고, 근사 중복 규칙에서 합성과 겹치는 공개 행이 빠지게 하기 위해서다.
+데이터는 `./scripts/prepare_data.sh`가 만든다: 원본 XLSX 다운로드 → 정규화(`scripts/prepare_faq.py`) → 평가 세트 생성 → 평가. 원본에 질문 문장 열이 없어 질문 필드는 `인텐트명`(2어절 안팎의 주제명)이다. 전처리: 답변에서 HTML·이메일·URL·전화번호 제거, 담당자·연락처·링크 열 미출력, 챗봇 시나리오 표기 답변(`|` 포함) 행 제외, IPv4 형태 포함 행 제외, 정확·근사(질문 bigram Jaccard ≥ 0.6) 중복 제거, 익명화 검사에 걸린 행은 `data/faq/exclude_keys.txt`에 key로 제외. 합성 5건은 faq-001~005로 맨 앞에 그대로 둔다 — 기존 단위·E2E 테스트와 음성 픽스처가 faq-001을 기준으로 하고, 근사 중복 규칙에서 합성과 겹치는 공개 행이 빠지게 하기 위해서다.
 
 ### Why
 
@@ -170,9 +170,9 @@ Status: Accepted (ADR-001의 "검색 (후속): rank-bm25"를 직접 구현 BM25 
 
 실측 (이 머신(Apple Silicon, CPU), `./scripts/prepare_data.sh`):
 - 원본 12시트, raw_rows 1428 = 전체 시트 714 + 분야별 시트 714(중복). 고유 행 714, 인텐트명 고유 704.
-- 탈락 short 2 · exact_dup 596 · near_dup 254 · pattern 0 · excluded 0. 정리 phones 304 · urls 106 · emails 4.
-- 결과 581건(합성 5 + 공개 576), 477,798 B. 인덱스 생성 1.3~1.5 ms.
-- 평가 42건(`uv run python scripts/eval_retrieval.py --faq data/faq/faq.jsonl --eval tests/fixtures/faq_eval.jsonl`): top1 1.000, top3 1.000, 검색 p50 0.009 ms, p95 0.029 ms, 센티널 3건 OK.
+- 탈락 short 2 · scenario 14 · exact_dup 590 · near_dup 252 · pattern 0 · excluded 0. 정리 phones 304 · urls 106 · emails 4.
+- 결과 575건(합성 5 + 공개 570), 476,391 B. 인덱스 생성 1.2~1.5 ms.
+- 평가 42건(`uv run python scripts/eval_retrieval.py --faq data/faq/faq.jsonl --eval tests/fixtures/faq_eval.jsonl`): top1 1.000, top3 1.000, 검색 p50 0.011 ms, p95 0.029 ms, 센티널 3건 OK.
 
 이 수치의 한계: 평가 세트는 색인된 인텐트명을 규칙(어미 제거·어절 교체·핵심어만·공백 제거)으로 변형한 질의다. top1 1.000은 표기·띄어쓰기·어미 변형에 대한 견고성을 보여줄 뿐, 실제 사용자 자유 발화 정확도가 아니다. 사람이 쓴 질문 세트로 하는 평가는 후속 과제다. 또 질문 필드가 질문 문장이 아니라 주제명이라, 주제명에 없는 표현으로 묻는 질문은 빗나갈 수 있다.
 

@@ -1,42 +1,42 @@
 {"query": "주민등록등본 떼려면 뭐 필요해요?", "expected_id": "faq-001", "kind": "seed"}
 {"query": "주민등록등본 때려면 뭐 필요해요?", "expected_id": "faq-001", "kind": "seed"}
-{"query": "시흥 출산·육아학 알려주세요", "expected_id": "faq-409", "kind": "p0_suffix_drop"}
-{"query": "안내 시흥시종합사회복지관 어떻게 해요?", "expected_id": "faq-339", "kind": "p1_swap"}
-{"query": "담당자 연락처 궁금해요", "expected_id": "faq-201", "kind": "p2_keywords"}
+{"query": "임산 요가교 알려주세요", "expected_id": "faq-404", "kind": "p0_suffix_drop"}
+{"query": "안내 일시돌봄서비스 어떻게 해요?", "expected_id": "faq-343", "kind": "p1_swap"}
+{"query": "담당자 연락처 궁금해요", "expected_id": "faq-198", "kind": "p2_keywords"}
 {"query": "K-패스지원사업(구알뜰교통카드마일리지)?", "expected_id": "faq-049", "kind": "p3_nospace"}
-{"query": "개인방 중요수 알려주세요", "expected_id": "faq-276", "kind": "p0_suffix_drop"}
-{"query": "및 재택치료키트 신속항원검사 어떻게 해요?", "expected_id": "faq-267", "kind": "p1_swap"}
-{"query": "확진자 외래진료병원 궁금해요", "expected_id": "faq-271", "kind": "p2_keywords"}
+{"query": "코로 후유 알려주세요", "expected_id": "faq-271", "kind": "p0_suffix_drop"}
+{"query": "운영 안심숙소 어떻게 해요?", "expected_id": "faq-262", "kind": "p1_swap"}
+{"query": "코로나19 생활지원금 궁금해요", "expected_id": "faq-268", "kind": "p2_keywords"}
 {"query": "노점상및노상적치물단속?", "expected_id": "faq-012", "kind": "p3_nospace"}
 {"query": "시루 연계 앱(만보시루 알려주세요", "expected_id": "faq-151", "kind": "p0_suffix_drop"}
 {"query": "전출 화물자동차주선사업 어떻게 해요?", "expected_id": "faq-069", "kind": "p1_swap"}
-{"query": "시흥바닷길 걷기축제 궁금해요", "expected_id": "faq-238", "kind": "p2_keywords"}
-{"query": "각동우리동네변호사?", "expected_id": "faq-231", "kind": "p3_nospace"}
-{"query": "음식물쓰레 배출 알려주세요", "expected_id": "faq-374", "kind": "p0_suffix_drop"}
+{"query": "군자봉 성황제 궁금해요", "expected_id": "faq-234", "kind": "p2_keywords"}
+{"query": "행사정보안내?", "expected_id": "faq-230", "kind": "p3_nospace"}
+{"query": "재활용 배출 알려주세요", "expected_id": "faq-369", "kind": "p0_suffix_drop"}
 {"query": "부과기준 주민세(개인분) 어떻게 해요?", "expected_id": "faq-126", "kind": "p1_swap"}
-{"query": "축산물판매업 지위승계 궁금해요", "expected_id": "faq-559", "kind": "p2_keywords"}
-{"query": "시흥시대표홈페이지문의?", "expected_id": "faq-176", "kind": "p3_nospace"}
-{"query": "조상 땅 찾기 알려주세요", "expected_id": "faq-553", "kind": "p0_suffix_drop"}
-{"query": "가상계좌 재산세 조회 어떻게 해요?", "expected_id": "faq-133", "kind": "p1_swap"}
-{"query": "호흡기환자 진료센터 궁금해요", "expected_id": "faq-254", "kind": "p2_keywords"}
-{"query": "부동산압류?", "expected_id": "faq-485", "kind": "p3_nospace"}
-{"query": "건설기 면허 신규발 알려주세요", "expected_id": "faq-013", "kind": "p0_suffix_drop"}
-{"query": "별도합산대상 재산세 어떻게 해요?", "expected_id": "faq-132", "kind": "p1_swap"}
-{"query": "지하수 수질검사 궁금해요", "expected_id": "faq-218", "kind": "p2_keywords"}
-{"query": "오토바이통행단속요청?", "expected_id": "faq-076", "kind": "p3_nospace"}
-{"query": "초등돌 콜센 알려주세요", "expected_id": "faq-353", "kind": "p0_suffix_drop"}
-{"query": "및 지원 혜택 어떻게 해요?", "expected_id": "faq-208", "kind": "p1_swap"}
-{"query": "코로나19 생활지원금 궁금해요", "expected_id": "faq-274", "kind": "p2_keywords"}
-{"query": "주정차단속CCTV설치현황?", "expected_id": "faq-030", "kind": "p3_nospace"}
-{"query": "주정 과태 금액/감경/면제기 알려주세요", "expected_id": "faq-031", "kind": "p0_suffix_drop"}
-{"query": "예약안내 도서관 어떻게 해요?", "expected_id": "faq-467", "kind": "p1_swap"}
-{"query": "전기자동차 충전소 궁금해요", "expected_id": "faq-512", "kind": "p2_keywords"}
-{"query": "인감대리발급?", "expected_id": "faq-084", "kind": "p3_nospace"}
-{"query": "월곶에코피 워터파 알려주세요", "expected_id": "faq-510", "kind": "p0_suffix_drop"}
-{"query": "페스티벌 힙한 어떻게 해요?", "expected_id": "faq-574", "kind": "p1_swap"}
-{"query": "주정차 납부방법 궁금해요", "expected_id": "faq-032", "kind": "p2_keywords"}
-{"query": "자동차의무보험?", "expected_id": "faq-492", "kind": "p3_nospace"}
-{"query": "기본교통비_중복지 불가 사업 알려주세요", "expected_id": "faq-059", "kind": "p0_suffix_drop"}
-{"query": "소비쿠폰 민생회복 어떻게 해요?", "expected_id": "faq-579", "kind": "p1_swap"}
-{"query": "재산세 과세 궁금해요", "expected_id": "faq-130", "kind": "p2_keywords"}
-{"query": "차고지증명요금?", "expected_id": "faq-291", "kind": "p3_nospace"}
+{"query": "축산물판매업 지위승계 궁금해요", "expected_id": "faq-553", "kind": "p2_keywords"}
+{"query": "시흥시대표홈페이지문의?", "expected_id": "faq-175", "kind": "p3_nospace"}
+{"query": "재산 가상계 조회 알려주세요", "expected_id": "faq-133", "kind": "p0_suffix_drop"}
+{"query": "의료상담센터 재택치료 어떻게 해요?", "expected_id": "faq-250", "kind": "p1_swap"}
+{"query": "자동차 번호판 궁금해요", "expected_id": "faq-481", "kind": "p2_keywords"}
+{"query": "건설기계면허증신규발급?", "expected_id": "faq-013", "kind": "p3_nospace"}
+{"query": "재산 별도합산대 알려주세요", "expected_id": "faq-132", "kind": "p0_suffix_drop"}
+{"query": "타정책 청년기본소득 중복 지급 가능 여부 어떻게 해요?", "expected_id": "faq-217", "kind": "p1_swap"}
+{"query": "오토바이 통행 궁금해요", "expected_id": "faq-076", "kind": "p2_keywords"}
+{"query": "이미용사면허증발급?", "expected_id": "faq-352", "kind": "p3_nospace"}
+{"query": "지원 및 혜택 알려주세요", "expected_id": "faq-204", "kind": "p0_suffix_drop"}
+{"query": "대응 코로나19 지원정책 설명서 어떻게 해요?", "expected_id": "faq-269", "kind": "p1_swap"}
+{"query": "CCTV 설치현황 궁금해요", "expected_id": "faq-030", "kind": "p2_keywords"}
+{"query": "주정차과태료금액/감경/면제기준?", "expected_id": "faq-031", "kind": "p3_nospace"}
+{"query": "도서 대출연 알려주세요", "expected_id": "faq-462", "kind": "p0_suffix_drop"}
+{"query": "충전소 수소전기차 위치 어떻게 해요?", "expected_id": "faq-514", "kind": "p1_swap"}
+{"query": "인감 대리발급 궁금해요", "expected_id": "faq-084", "kind": "p2_keywords"}
+{"query": "전기자동차충전소위치?", "expected_id": "faq-506", "kind": "p3_nospace"}
+{"query": "힙한 페스티 알려주세요", "expected_id": "faq-568", "kind": "p0_suffix_drop"}
+{"query": "과태료 주정차 납부방법 어떻게 해요?", "expected_id": "faq-032", "kind": "p1_swap"}
+{"query": "건설기계 등록변경 궁금해요", "expected_id": "faq-488", "kind": "p2_keywords"}
+{"query": "기본교통비_중복지원불가사업?", "expected_id": "faq-059", "kind": "p3_nospace"}
+{"query": "민생회 소비쿠 알려주세요", "expected_id": "faq-573", "kind": "p0_suffix_drop"}
+{"query": "과세 재산세 및 부과 어떻게 해요?", "expected_id": "faq-130", "kind": "p1_swap"}
+{"query": "바로패스 대상자 궁금해요", "expected_id": "faq-286", "kind": "p2_keywords"}
+{"query": "건설기계제증명발급?", "expected_id": "faq-490", "kind": "p3_nospace"}

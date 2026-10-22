@@ -7,7 +7,7 @@ This project uses public or synthetic data only. Raw downloads go to data/raw/ (
 | Dataset | Source URL | License | Version or date | Subset used |
 |---|---|---|---|---|
 | 합성 FAQ 샘플 | 이 저장소 | CC0 | 2026-10-22 | 5건 |
-| 경기도 시흥시_챗봇 FAQ 시나리오 (공공데이터포털 15148282) | https://www.data.go.kr/data/15148282/fileData.do | 이용허락범위 제한 없음 (공공데이터포털 표기) | 2025-09-01 (다운로드 2026-10-22) | 인텐트명·답변·대분류 열, 전처리 후 576건 → `data/faq/faq.jsonl` |
+| 경기도 시흥시_챗봇 FAQ 시나리오 (공공데이터포털 15148282) | https://www.data.go.kr/data/15148282/fileData.do | 이용허락범위 제한 없음 (공공데이터포털 표기) | 2025-09-01 (다운로드 2026-10-22) | 인텐트명·답변·대분류 열, 전처리 후 570건 → `data/faq/faq.jsonl` |
 | tests/fixtures/faq_eval.jsonl | 이 저장소 (faq.jsonl에서 규칙으로 생성) | CC0 | 2026-10-22 | 질의 42건 (변형 40 + 센티널 2) |
 | tests/fixtures/ask_faq001_ko.wav | 이 저장소 (Supertonic 3로 합성, 가중치 OpenRAIL-M) | CC0 | 2026-10-22 | 질문 1문장, 사람 목소리 아님, 재생성 scripts/make_fixture_audio.py |
 
@@ -20,15 +20,15 @@ uv sync --extra dev          # openpyxl (XLSX 읽기)
 
 - 원본: `data/raw/siheung_chatbot_faq_20250901.xlsx` (295,757 B, 12시트, git 제외). 로그인·인증키 없이 받는다. 이미 있으면 `./scripts/prepare_data.sh --skip-download`.
 - 다운로드 절차 (`scripts/prepare_faq.py`): (1) 포털 파일 URL을 `GET`해 ZIP 시그니처·100 KB 이상이면 성공, (2) 아니면 포털의 다운로드 해결 요청(`selectFileDataDownload.do`)으로 파일 id를 다시 받아 1회 재시도, (3) 그래도 실패면 종료 3. 포털은 과다 다운로드에 캡차를 띄우므로 한 번 실행에 1회만 받는다.
-- 산출물: `data/faq/faq.jsonl` (581행, 477,798 B, 커밋됨), `tests/fixtures/faq_eval.jsonl` (42행, 커밋됨). 같은 입력이면 같은 바이트가 나온다.
+- 산출물: `data/faq/faq.jsonl` (575행, 476,391 B, 커밋됨), `tests/fixtures/faq_eval.jsonl` (42행, 커밋됨). 같은 입력이면 같은 바이트가 나온다.
 
 ## Preprocessing
 
 원본 구조: "챗봇 FAQ 시나리오 전체" 시트 714행 + 분야별 11시트 714행(전체 시트의 부분집합) = raw_rows 1428. 고유 행은 714건, 인텐트명 기준 704개다. 원본에 질문 문장 열이 없어 **질문 필드 = `인텐트명`**(2어절 안팎의 주제명, 예: "어린이 예방접종"), 답변 = `답변`, 분류 = `대분류`를 쓴다. `검토부서`·`담당 팀`·`연락처`·`링크`·`관련 인텐트`·`비 고` 열은 출력하지 않는다.
 
 - 본문 정리 (`clean_text`): HTML 태그·엔티티, 이메일, URL, 전화번호(공공기관 번호 포함)를 제거하고 공백 정리·NFC 정규화.
-- 행 규칙 (순서대로): 빈 행 → 짧은 행(질문 < 2자, 답변 < 5자) → IPv4 형태 포함 행 → 질문 정확 중복 → 질문 bigram Jaccard ≥ 0.6 근사 중복 → `data/faq/exclude_keys.txt`에 적힌 key.
-- 이번 실행 통계 (`./scripts/prepare_data.sh` stdout): 탈락 short 2 · pattern 0 · exact_dup 596 · near_dup 254 · excluded 0 (exact_dup·near_dup에는 분야별 시트 중복 재집계가 포함된다). 정리 phones 304 · urls 106 · emails 4. 결과 final 581 = 합성 5 + 공개 576, 답변 길이 p50 224 · p95 571 · max 1150자.
+- 행 규칙 (순서대로): 빈 행 → 짧은 행(질문 < 2자, 답변 < 5자) → 챗봇 시나리오 표기 답변(`scenario`: 영숫자·밑줄 + `|`로 시작하거나 `|` 포함) → IPv4 형태 포함 행 → 질문 정확 중복 → 질문 bigram Jaccard ≥ 0.6 근사 중복 → `data/faq/exclude_keys.txt`에 적힌 key.
+- 이번 실행 통계 (`./scripts/prepare_data.sh` stdout): 탈락 short 2 · scenario 14 · pattern 0 · exact_dup 590 · near_dup 252 · excluded 0 (scenario·exact_dup·near_dup에는 분야별 시트 중복 재집계가 포함된다). 정리 phones 304 · urls 106 · emails 4. 결과 final 575 = 합성 5 + 공개 570, 답변 길이 p50 227 · p95 571 · max 1150자.
 - `key` = 원문 질문 기준 sha1 앞 12자리. 익명화 검사(`sanitize-check.sh`)에 걸린 행은 `exclude_keys.txt`에 key를 적어 빼고 다시 실행한다 (금지 단어를 저장소에 쓰지 않고 재현). 현재 제외 0건.
 - 행 형식: `{"id", "question", "answer", "source", "category", "key"}`. 서버는 메모리에서 BM25 인덱스를 만든다(인덱스 파일 없음).
 

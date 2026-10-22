@@ -2,7 +2,7 @@
 
 Voice assistant for a self-service civic kiosk. Speech in, RAG-grounded answer, speech out, with latency measured per stage.
 
-Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retrieval over a public civil-service FAQ (581 entries). The LLM is still a stub. Rebuilt on public data.
+Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retrieval over a public civil-service FAQ (575 entries). The LLM is still a stub. Rebuilt on public data.
 
 ## Run
 
@@ -38,7 +38,7 @@ RETRIEVER_BACKEND=bm25 FAQ_PATH=data/faq/faq.jsonl uv run uvicorn app.main:app -
 
 - `prepare_data.sh` downloads the raw XLSX into `data/raw/` (git-ignored), writes `data/faq/faq.jsonl` and `tests/fixtures/faq_eval.jsonl`, then runs the evaluation. The committed `faq.jsonl` is already the result, so the server runs without this step.
 - `RETRIEVER_BACKEND` defaults to `keyword` (the 5 synthetic FAQs in `data/faq/sample_faq.json`). The answer shows `출처: faq-NNN`.
-- Data: 경기도 시흥시 챗봇 FAQ 시나리오 (공공데이터포털 15148282, 2025-09-01), license "이용허락범위 제한 없음". 576 public rows (of 704 distinct topics, after near-duplicate and short-row removal) + 5 synthetic = 581. The indexed "question" is the dataset's intent name (a short topic such as "어린이 예방접종"), not a full question sentence. Details in `data/README.md`, decision in `docs/decisions.md` ADR-004.
+- Data: 경기도 시흥시 챗봇 FAQ 시나리오 (공공데이터포털 15148282, 2025-09-01), license "이용허락범위 제한 없음". 570 public rows (of 704 distinct topics, after near-duplicate, short-row and chatbot-scenario-row removal) + 5 synthetic = 575. The indexed "question" is the dataset's intent name (a short topic such as "어린이 예방접종"), not a full question sentence. Details in `data/README.md`, decision in `docs/decisions.md` ADR-004.
 
 ## Test
 
@@ -72,11 +72,11 @@ On this machine (Apple Silicon, CPU):
 
 ## Measured retrieval
 
-On this machine (Apple Silicon, CPU), 581 FAQ entries, 42 evaluation queries:
+On this machine (Apple Silicon, CPU), 575 FAQ entries, 42 evaluation queries:
 
 | top1 | top3 | retrieve p50 | retrieve p95 | index build |
 |---|---|---|---|---|
-| 1.000 | 1.000 | 0.009 ms | 0.029 ms | 1.3~1.5 ms |
+| 1.000 | 1.000 | 0.011 ms | 0.029 ms | 1.2~1.5 ms |
 
 Reproduce (prints the same line plus 3 sentinel checks and `RESULT PASS`):
 
