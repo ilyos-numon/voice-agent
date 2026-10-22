@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -29,6 +30,10 @@ class Retriever(Protocol):
 
 class LLM(Protocol):
     def answer(self, query: str, context: list[FaqItem]) -> str: ...
+
+
+class SentenceStreamingLLM(LLM, Protocol):
+    def stream_sentences(self, query: str, context: list[FaqItem]) -> Iterator[str]: ...
 
 
 class TTS(Protocol):

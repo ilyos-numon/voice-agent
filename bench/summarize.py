@@ -14,7 +14,7 @@ STAGE_LABEL = {"stt_ms": "STT", "retrieve_ms": "검색", "llm_ms": "LLM", "tts_m
 STAGE_NOTE = {
     "stt_ms": "글자 입력, STT 미포함",
     "retrieve_ms": "BM25",
-    "llm_ms": "스텁",
+    "llm_ms": "Qwen qwen3.7-flash (API)",
     "tts_ms": "after 는 문장별 합",
 }
 

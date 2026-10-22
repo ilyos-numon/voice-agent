@@ -2,6 +2,7 @@ import time
 
 from app.config import Settings
 from app.pipeline.bm25 import BM25Retriever
+from app.pipeline.llm_qwen import QwenLLM
 from app.pipeline.stt_whisper import WhisperSTT
 from app.pipeline.stubs import KeywordRetriever, PassthroughSTT, SilentTTS, TemplateLLM
 from app.pipeline.tts_supertonic import SupertonicTTS
@@ -63,8 +64,24 @@ def build_retriever(settings: Settings) -> Retriever:
     raise ValueError(f"unknown RETRIEVER_BACKEND: {backend}")
 
 
+def build_llm(settings: Settings) -> LLM:
+    backend = settings.llm_backend
+    if backend == "stub":
+        return TemplateLLM()
+    if backend == "qwen":
+        if not settings.llm_api_key:
+            return TemplateLLM()
+        return QwenLLM(
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+            model=settings.llm_model,
+            timeout_s=settings.llm_timeout_s,
+        )
+    raise ValueError(f"unknown LLM_BACKEND: {backend}")
+
+
 def build_pipeline(settings: Settings) -> Pipeline:
     mode = settings.pipeline_mode
     if mode != "stub":
         raise ValueError(f"unknown PIPELINE_MODE: {mode}")
-    return Pipeline(build_stt(settings), build_retriever(settings), TemplateLLM(), build_tts(settings))
+    return Pipeline(build_stt(settings), build_retriever(settings), build_llm(settings), build_tts(settings))
