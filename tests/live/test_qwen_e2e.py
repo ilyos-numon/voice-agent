@@ -4,6 +4,8 @@ import json
 import httpx
 from playwright.sync_api import Page
 
+from app.pipeline.sentences import split_sentences
+
 
 def _events(base_url: str, text: str) -> list[tuple[str, dict]]:
     events: list[tuple[str, dict]] = []
@@ -30,10 +32,13 @@ def test_stream_source_id_and_audio(base_url: str) -> None:
 
 def test_stream_long_item_keeps_source_and_shortens(base_url: str) -> None:
     events = _events(base_url, "위반건축물 행정처분")
+    names = [n for n, _ in events]
     meta = events[0][1]
     assert meta["source"]["id"] == "faq-020"
     assert len(meta["answer"]) < 577
-    assert 1 <= meta["sentence_count"] <= 3
+    assert 1 <= len(split_sentences(meta["answer"])) <= 3
+    assert names.count("audio") == meta["sentence_count"]
+    assert 1 <= meta["sentence_count"] <= 4
     assert events[-1][0] == "done"
 
 
