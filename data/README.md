@@ -7,6 +7,7 @@ This project uses public or synthetic data only. Raw downloads go to data/raw/ (
 | Dataset | Source URL | License | Version or date | Subset used |
 |---|---|---|---|---|
 | 합성 FAQ 샘플 | 이 저장소 | CC0 | 2026-10-22 | 5건 |
+| tests/fixtures/ask_faq001_ko.wav | 이 저장소 (Supertonic 3로 합성, 가중치 OpenRAIL-M) | CC0 | 2026-10-22 | 질문 1문장, 사람 목소리 아님, 재생성 scripts/make_fixture_audio.py |
 
 ## Download
 
