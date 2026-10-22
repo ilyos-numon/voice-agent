@@ -25,5 +25,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+data/raw/
 .DS_Store
 *.log
