@@ -2,19 +2,26 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>voice-agent demo</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <h1>🎤 말씀하세요 (지금은 글자로 입력)</h1>
-  <input type="text" id="question" value="">
-  <button id="ask">묻기</button>
-  <section id="result" data-state="idle">
-    <p id="transcript"></p>
-    <p id="answer"></p>
-    <p id="source"></p>
-    <p id="timings"></p>
-    <audio id="audio" controls></audio>
-  </section>
-  <p id="error" hidden></p>
+  <main class="kiosk">
+    <h1>🎤 말씀하세요 (지금은 글자로 입력)</h1>
+    <div class="ask-row">
+      <input type="text" id="question" value="" placeholder="예: 주민등록등본 떼려면 뭐 필요해요?" autocomplete="off">
+      <button id="ask" type="button">묻기</button>
+    </div>
+    <section id="result" data-state="idle" aria-live="polite">
+      <p id="transcript"></p>
+      <p id="answer"></p>
+      <p id="source"></p>
+      <p id="timings"></p>
+      <audio id="audio" controls></audio>
+    </section>
+    <p id="error" hidden></p>
+  </main>
+  <script src="/static/app.js"></script>
 </body>
 </html>
