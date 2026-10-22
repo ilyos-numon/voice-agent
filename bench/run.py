@@ -1,4 +1,4 @@
-"""실행 중인 서버에 질문 세트를 보내 단계별 지연을 jsonl 로 기록한다 (before=/api/ask, after=/api/ask-stream)."""
+"""실행 중인 서버에 질문 세트를 보내 단계별 지연을 jsonl 로 기록한다 (before=/api/ask, after=/api/ask-stream, audio=/api/ask-audio-stream)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -130,10 +131,14 @@ def error_record(cfg: str, run: int, q: dict, error: str) -> dict:
 
 
 def _post(base_url: str, endpoint: str, text: str, timeout: float) -> Any:
+    return _post_bytes(base_url, endpoint, json.dumps({"text": text}).encode(), "application/json", timeout)
+
+
+def _post_bytes(base_url: str, endpoint: str, data: bytes, content_type: str, timeout: float) -> Any:
     req = urllib.request.Request(
         base_url.rstrip("/") + endpoint,
-        data=json.dumps({"text": text}).encode(),
-        headers={"Content-Type": "application/json"},
+        data=data,
+        headers={"Content-Type": content_type},
         method="POST",
     )
     return urllib.request.urlopen(req, timeout=timeout)
@@ -148,11 +153,27 @@ def run_before(cfg: str, run: int, q: dict, base_url: str, timeout: float) -> di
 
 
 def run_after(cfg: str, run: int, q: dict, base_url: str, timeout: float) -> dict:
+    events, first, total = _read_stream(lambda: _post(base_url, CONFIGS[cfg]["endpoint"], q["query"], timeout))
+    return record_from_stream(cfg, run, q, events, first, total)
+
+
+def run_audio(cfg: str, run: int, q: dict, base_url: str, timeout: float, audio_dir: Path = Path("bench/audio")) -> dict:
+    data = (Path(audio_dir) / f"{q['id']}.wav").read_bytes()
+    events, first, total = _read_stream(
+        lambda: _post_bytes(base_url, CONFIGS[cfg]["endpoint"], data, "audio/wav", timeout)
+    )
+    rec = record_from_stream(cfg, run, q, events, first, total)
+    meta = next((d for n, d in events if n == "meta"), None)
+    rec["transcript"] = meta.get("transcript") if meta and rec["status"] == "ok" else None
+    return rec
+
+
+def _read_stream(open_req: Callable[[], Any]) -> tuple[list[tuple[str, dict]], float | None, float]:
     lines: list[str] = []
     first: float | None = None
     t0 = time.perf_counter()
     total = 0.0
-    with _post(base_url, CONFIGS[cfg]["endpoint"], q["query"], timeout) as r:
+    with open_req() as r:
         for raw in r:
             line = raw.decode("utf-8").rstrip("\r\n")
             lines.append(line)
@@ -164,12 +185,13 @@ def run_after(cfg: str, run: int, q: dict, base_url: str, timeout: float) -> dic
                     total = (time.perf_counter() - t0) * 1000
     if total == 0.0:
         total = (time.perf_counter() - t0) * 1000
-    return record_from_stream(cfg, run, q, parse_sse(lines), first, total)
+    return parse_sse(lines), first, total
 
 
 CONFIGS: dict[str, dict[str, Any]] = {
     "before": {"endpoint": "/api/ask", "run": run_before},
     "after": {"endpoint": "/api/ask-stream", "run": run_after},
+    "audio": {"endpoint": "/api/ask-audio-stream", "run": run_audio},
 }
 
 
@@ -181,14 +203,37 @@ def _health(base_url: str, timeout: float) -> dict | None:
         return None
 
 
-def run_one(cfg: str, run: int, q: dict, base_url: str, timeout: float) -> dict:
+def run_one(
+    cfg: str, run: int, q: dict, base_url: str, timeout: float, audio_dir: Path = Path("bench/audio")
+) -> dict:
     fn: Callable[..., dict] = CONFIGS[cfg]["run"]
+    if cfg == "audio":
+        if not (Path(audio_dir) / f"{q['id']}.wav").is_file():
+            return _with_transcript(error_record(cfg, run, q, "missing audio file"))
+        try:
+            return fn(cfg, run, q, base_url, timeout, audio_dir)
+        except urllib.error.HTTPError as e:
+            return _with_transcript(error_record(cfg, run, q, f"HTTP {e.code}"))
+        except (OSError, ValueError, KeyError) as e:
+            return _with_transcript(error_record(cfg, run, q, type(e).__name__))
     try:
         return fn(cfg, run, q, base_url, timeout)
     except urllib.error.HTTPError as e:
         return error_record(cfg, run, q, f"HTTP {e.code}")
     except (OSError, ValueError, KeyError) as e:  # 타임아웃·연결 오류 등: 기록하고 다음으로
         return error_record(cfg, run, q, type(e).__name__)
+
+
+def _with_transcript(rec: dict) -> dict:
+    rec["transcript"] = None
+    return rec
+
+
+def _positive_int(value: str) -> int:
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError("must be >= 1")
+    return n
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -200,11 +245,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--out", default=None)
     p.add_argument("--timeout", type=float, default=120.0)
+    p.add_argument("--concurrency", type=_positive_int, default=1)
+    p.add_argument("--audio-dir", default="bench/audio")
     a = p.parse_args(argv)
 
     questions = [json.loads(line) for line in Path(a.questions).read_text(encoding="utf-8").splitlines() if line.strip()]
     if a.limit > 0:
         questions = questions[: a.limit]
+    audio_dir = Path(a.audio_dir)
     out = Path(a.out or f"bench/results/{a.config}.jsonl")
     out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -216,16 +264,22 @@ def main(argv: list[str] | None = None) -> int:
         "started_at": datetime.now().isoformat(timespec="seconds"),
         "runs": a.runs,
         "questions": len(questions),
-        "input": "text",
-        "concurrency": 1,
+        "input": "audio" if a.config == "audio" else "text",
+        "concurrency": a.concurrency,
         "health": _health(a.base_url, a.timeout),
     }
     errors = 0
     with out.open("w", encoding="utf-8") as f:
         f.write(json.dumps(header, ensure_ascii=False) + "\n")
-        for run in range(1, a.runs + 1):
-            for i, q in enumerate(questions, 1):
-                rec = run_one(a.config, run, q, a.base_url, a.timeout)
+        with ThreadPoolExecutor(max_workers=a.concurrency) as ex:
+            futures = {
+                ex.submit(run_one, a.config, run, q, a.base_url, a.timeout, audio_dir): (run, i, q)
+                for run in range(1, a.runs + 1)
+                for i, q in enumerate(questions, 1)
+            }
+            for fut in as_completed(futures):
+                run, i, q = futures[fut]
+                rec = fut.result()
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 f.flush()
                 if rec["status"] != "ok":
