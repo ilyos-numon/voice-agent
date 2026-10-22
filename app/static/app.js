@@ -26,6 +26,7 @@
       "⏱ 듣기 " + ms(t.stt_ms) + "ms · 검색 " + ms(t.retrieve_ms) +
       "ms · 생각 " + ms(t.llm_ms) + "ms · 말하기 " + ms(t.tts_ms) + "ms";
     $("audio").src = "data:audio/wav;base64," + data.audio_wav_b64;
+    var p = $("audio").play(); if (p && p.catch) { p.catch(function () {}); }
     setState("answered");
   }
 
