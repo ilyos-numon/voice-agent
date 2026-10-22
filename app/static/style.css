@@ -44,6 +44,20 @@ h1 { font-size: 40px; margin: 0 0 24px; }
 
 #ask:disabled { opacity: 0.6; cursor: wait; }
 
+#mic {
+  width: 88px;
+  font-size: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: #26324a;
+  color: #fff;
+  cursor: pointer;
+}
+
+#mic:disabled { opacity: 0.6; cursor: wait; }
+#mic.recording { background: #d7263d; animation: mic-blink 1s ease-in-out infinite; }
+@keyframes mic-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
 #result {
   border: 3px solid #26324a;
   border-radius: 16px;
@@ -54,6 +68,8 @@ h1 { font-size: 40px; margin: 0 0 24px; }
 #result p { margin: 0 0 16px; }
 #result[data-state="idle"]::before { content: "질문을 입력하고 묻기를 누르세요."; color: #9fb0cc; }
 #result[data-state="loading"]::before { content: "답변을 준비하고 있어요…"; color: #9fb0cc; }
+#result[data-state="recording"]::before { content: "듣고 있어요… 다시 누르면 전송됩니다."; color: #ff9aa8; }
+#result[data-state="transcribing"]::before { content: "들은 말을 글자로 옮기고 있어요…"; color: #9fb0cc; }
 #result[data-state="error"]::before { content: "다시 시도해 주세요."; color: #ff9aa8; }
 #result:not([data-state="answered"]) > * { display: none; }
 
