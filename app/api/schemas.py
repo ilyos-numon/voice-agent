@@ -33,3 +33,32 @@ class AskResponse(BaseModel):
     source: SourceOut | None
     timings: TimingsOut
     audio_wav_b64: str
+
+
+class StreamMetaOut(BaseModel):
+    transcript: str
+    answer: str
+    source: SourceOut | None
+    sentence_count: int
+    timings: dict[str, float]
+
+
+class StreamAudioOut(BaseModel):
+    index: int
+    text: str
+    audio_wav_b64: str
+    tts_ms: float
+    elapsed_ms: float
+
+
+class StreamTimingsOut(TimingsOut):
+    first_audio_ms: float
+
+
+class StreamDoneOut(BaseModel):
+    sentence_count: int
+    timings: StreamTimingsOut
+
+
+class StreamErrorOut(BaseModel):
+    detail: str
