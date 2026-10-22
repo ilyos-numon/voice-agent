@@ -2,6 +2,7 @@ import io
 import json
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from typing import IO
 
 from app.pipeline.llm_qwen import MAX_SENTENCES, QwenLLM
@@ -95,4 +96,47 @@ def test_error_after_first_sentence_keeps_partial() -> None:
     body = _sse(["가나다라마바사 일. ", "가나다라"])[:-len("data: [DONE]\n\n")] + b"data: {broken\n\n"
     out = list(_llm(FakeOpener(body)).stream_sentences("q", CTX))
     assert out[0] == "가나다라마바사 일."
+    assert CTX[0].answer not in " ".join(out)
+
+
+def test_first_chunk_flushed_early_at_comma() -> None:
+    deltas = ["주민등록등본은 가까운 주민센터에서, ", "신분증을 지참하시면 ", "발급받으실 수 있습니다. ",
+              "수수료는 400원입니다."]
+    consumed: list[int] = []
+
+    def gen() -> Iterator[str]:
+        for i, d in enumerate(deltas):
+            consumed.append(i)
+            yield d
+
+    llm = _llm(FakeOpener(b""))
+    llm._deltas = lambda q, top: gen()  # type: ignore[method-assign]
+    it = llm.stream_sentences("q", CTX)
+    first = next(it)
+    assert first == "주민등록등본은 가까운 주민센터에서,"
+    assert consumed == [0]  # 첫 델타 끝의 쉼표+공백에서 곧바로 나간다
+    rest = list(it)
+    assert rest == ["신분증을 지참하시면 발급받으실 수 있습니다.", "수수료는 400원입니다."]
+    assert " ".join([first, *rest]) == "".join(deltas)
+
+
+def test_early_chunk_needs_min_chars_and_only_first() -> None:
+    op = FakeOpener(_sse(["네, 맞습니다. 민원실에서, 신분증을 내시고 받으시면 됩니다. ",
+                          "추가로, 수수료를 내시면 되고, 기다리시면 됩니다."]))
+    out = list(_llm(op).stream_sentences("q", CTX))
+    assert out[0] == "네, 맞습니다. 민원실에서,"
+    assert out[1:] == ["신분증을 내시고 받으시면 됩니다.", "추가로, 수수료를 내시면 되고, 기다리시면 됩니다."]
+
+
+def test_early_chunk_not_counted_for_sentence_limit() -> None:
+    op = FakeOpener(_sse(["가나다라마바사아자차카타파하거너, 일. ", "가나다라마바사 이. ", "가나다라마바사 삼. ",
+                          "가나다라마바사 사. ", "가나다라마바사 오."]))
+    out = list(_llm(op).stream_sentences("q", CTX))
+    assert out == ["가나다라마바사아자차카타파하거너,", "일. 가나다라마바사 이.", "가나다라마바사 삼.", "가나다라마바사 사."]
+
+
+def test_error_after_early_chunk_keeps_partial_no_faq_fallback() -> None:
+    body = _sse(["가나다라마바사아자차카타파하거너, ", "타파하"])[:-len("data: [DONE]\n\n")] + b"data: {broken\n\n"
+    out = list(_llm(FakeOpener(body)).stream_sentences("q", CTX))
+    assert out[0] == "가나다라마바사아자차카타파하거너,"
     assert CTX[0].answer not in " ".join(out)

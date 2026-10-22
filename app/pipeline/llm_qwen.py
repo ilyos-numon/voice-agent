@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 
 MIN_ANSWER_CHARS = 10
 MAX_SENTENCES = 3
+EARLY_CHUNK_CHARS = 15  # 첫 조각만: 쉼표·연결어미 휴지에서 이 길이 이상이면 문장 종결 전에 TTS로 보낸다
 
 SYSTEM_PROMPT = (
     "당신은 민원 안내 음성 상담원입니다. 주어진 근거에 없는 내용은 말하지 마십시오. "
@@ -25,6 +26,9 @@ SYSTEM_PROMPT = (
 )
 
 _BOUNDARY = re.compile(r"(?<=[.?!。])\s+")
+_SENTENCE_END = ".?!。"
+# 첫 조각 후보 경계: 문장 종결 또는 쉼표·연결어미(-고/-며/-면/-서/-데/-만) 뒤 공백
+_FIRST_CUT = re.compile(r"(?<=[.?!。,，고며면서데만])\s+")
 
 Opener = Callable[[urllib.request.Request, float], IO[bytes]]
 
@@ -98,11 +102,24 @@ class QwenLLM:
             yield FALLBACK_ANSWER
             return
         top = context[0]
-        emitted = 0
+        emitted = 0  # 문장 수 (MAX_SENTENCES 대상). 조기 첫 조각은 세지 않는다
+        started = False
         buf = ""
         try:
             for delta in self._deltas(query, top):
                 buf += delta
+                if not started:
+                    for m in _FIRST_CUT.finditer(buf):
+                        head = buf[: m.start()].strip()
+                        is_end = buf[m.start() - 1] in _SENTENCE_END
+                        if len(head) < (MIN_ANSWER_CHARS if is_end else EARLY_CHUNK_CHARS):
+                            continue
+                        yield head
+                        started = True
+                        buf = buf[m.end():]
+                        if is_end:
+                            emitted += 1
+                        break
                 parts = _BOUNDARY.split(buf)
                 # 마지막 조각은 아직 끝나지 않았을 수 있다
                 done, buf = parts[:-1], parts[-1]
@@ -113,16 +130,17 @@ class QwenLLM:
                         continue
                     yield pending
                     pending = ""
+                    started = True
                     emitted += 1
                     if emitted >= MAX_SENTENCES:
                         return
                 if pending:
-                    buf = f"{pending} {buf}" if buf else pending
+                    buf = f"{pending} {buf}" if buf else f"{pending} "
         except (OSError, ValueError, AttributeError) as exc:  # 네트워크·타임아웃·HTTP·파싱 오류
             log.warning("qwen llm failed: %s", type(exc).__name__)
             buf = ""
         tail = buf.strip()
-        if emitted:
+        if started:
             if tail and emitted < MAX_SENTENCES:
                 yield tail
             return
