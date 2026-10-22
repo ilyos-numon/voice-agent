@@ -211,3 +211,39 @@ Status: Accepted
 전체 합성 시간 자체는 줄지 않는다(문장 합 ≈ 전체). 줄어드는 것은 첫 음성까지의 대기다.
 
 이 결정이 틀리게 되는 경우: 첫 문장이 매우 길어 1문장 합성이 수 초를 넘을 때(그때 분할 상한 축소 또는 청크 스트리밍 재검토), 문장 재생 시간이 다음 문장 합성 시간보다 짧아 문장 사이에 끊김이 들릴 때(그때 선합성 버퍼 검토), 대화형 끼어들기(barge-in) 같은 양방향 제어가 필요해질 때(그때 WebSocket 재검토).
+
+## ADR-006: bench: 글자 입력 50문항 × 3회, before=/api/ask·after=/api/ask-stream
+
+Status: Accepted
+
+### Context
+
+ADR-005 의 실측은 긴 답변 1건(faq-020)뿐이라, 문장 단위 스트리밍이 일반 질문에서도 첫 음성까지의 대기를 줄이는지 보여주지 못했다. 같은 질문 집합을 두 엔드포인트에 똑같이 보내 단계별 시간을 모으고, 표와 폭포 그림으로 남길 재현 가능한 bench 가 필요하다.
+
+### Decision
+
+- 질문 선택(`bench/make_questions.py`): 답변 길이가 하한~상한 안인 FAQ 만 후보로 두고, 평가셋 질의를 파일 순서대로(id 당 1개) 먼저 넣은 뒤 나머지를 답변 길이 분위로 균등 추출해 50개를 채운다. (answer_chars, id) 로 정렬하며 난수는 쓰지 않는다.
+- 입력은 글자(텍스트)만, 동시 1요청, 50문항 × 3회. before = `POST /api/ask`, after = `POST /api/ask-stream`.
+- 측정 정의: `first_audio_ms` 는 서버 측 요청 시작부터 첫 음성 WAV 준비까지(before 는 응답 완료 = `total_ms`), `total_ms` 는 after 의 경우 마지막 문장 WAV 까지. 클라이언트 측 값(`client_first_audio_ms`)도 함께 기록한다. 검색 적중은 top1 id = 질문 id.
+- 레코드 `stages` 는 열린 키 집합(`stt_ms`·`retrieve_ms`·`llm_ms`·`tts_ms` …)으로 서버 `timings` 를 그대로 옮긴다. LLM 이 스텁에서 API 로 바뀌거나 단계가 추가돼도 bench 코드를 고치지 않고 같은 표·그림을 다시 만들 수 있다.
+
+### 대안과 미채택 이유
+
+| 대안 | 미채택 이유 |
+|------|-------------|
+| 음성 입력 bench | STT 시간이 TTS 개선 효과와 섞이고, 50개 질문의 녹음 fixture 를 새로 만들어야 한다. STT 는 README "Measured latency" 에 따로 있다 |
+| 동시 4요청 | CPU 한 대에서 모델 경합이 결과를 지배해 before/after 차이를 흐린다. 이번 범위 밖(표에 "미측정") |
+| matplotlib 그림 | 의존성 추가 없이 SVG 를 표준 라이브러리로 직접 쓰는 편이 재현이 가볍다 |
+
+### 실측
+
+이 머신(Apple Silicon, CPU), `bench/results/summary.md`:
+
+| 지표 | before (/api/ask) | after (/api/ask-stream) | 비고 |
+|---|---|---|---|
+| 첫 음성까지 (p50 / p95) | 4986.1 / 8220.0 ms | 871.1 / 2214.4 ms | 서버 측. before 는 응답 완료 = total_ms |
+| 전체 응답 (p50 / p95) | 4986.1 / 8220.0 ms | 5402.4 / 11080.3 ms | total_ms (after 는 마지막 문장 WAV 까지) |
+
+재현: README "Latency (before / after)" 의 명령 블록. 원본 환경 수치(docs/vision.md)는 하드웨어·모델·질문이 달라 비교 불가다.
+
+이 결정이 틀리게 되는 경우: LLM 이 실제 API 로 바뀌어 LLM 시간이 TTS 를 넘어설 때(그때 LLM 토큰 스트리밍까지 포함한 bench 로 확장), 실사용에서 동시 요청이 흔할 때(그때 동시성 bench 추가).
