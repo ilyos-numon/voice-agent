@@ -64,6 +64,13 @@ def test_stream_demo_page_shows_playing_sentence(
     page.fill("#question", LONG_QUESTION)
     page.click("#ask")
     page.wait_for_selector('#result[data-state="speaking"]', timeout=20000)
-    page.wait_for_selector("#sentences li.playing", timeout=20000)
+    page.wait_for_function(
+        "() => { const li = document.querySelectorAll('#sentences li');"
+        " return li.length >= 2 && li[0].classList.contains('playing'); }",
+        timeout=20000,
+    )
+    items = page.locator("#sentences li")
+    assert items.count() >= 2
+    assert "playing" in (items.first.get_attribute("class") or "")
     page.screenshot(path=str(shot_dir / "demo-stream-speaking.png"), full_page=True)
     page.wait_for_selector('#result[data-state="answered"]', timeout=60000)
