@@ -1,6 +1,6 @@
 # voice-agent
 
-Voice assistant for a self-service civic kiosk. Speech in, RAG-grounded answer, speech out, with latency measured per stage.
+A transparent voice agent builder: paste your FAQ, talk to your agent, and see per-turn latency and the source behind every sentence. Speech in, RAG-grounded answer, speech out, with latency measured per stage. (Phase 1, below, is the self-service civic kiosk preset.)
 
 Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retrieval over a public civil-service FAQ (575 entries) + LLM summary by Qwen `qwen3.7-flash` (API, optional; `LLM_BACKEND=qwen`, default is a template stub). Rebuilt on public data.
 
