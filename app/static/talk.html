@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>음성 상담원과 대화</title>
+  <link rel="stylesheet" href="/static/ui.css">
+</head>
+<body data-page="talk">
+  <header class="site-header">
+    <h1 id="agent-title">상담원</h1>
+    <a id="back-link" href="/">← 다른 상담원</a>
+    <button id="share-btn" type="button" class="secondary">공유 링크 복사</button>
+    <span class="muted">남은 질문 <strong id="questions-left">-</strong>개</span>
+    <input id="share-url" type="text" readonly hidden aria-label="공유 링크" style="flex: 1 1 100%;">
+    <span id="share-status" class="hint" aria-live="polite"></span>
+    <span id="queue-status" class="queue-status" aria-live="polite"></span>
+  </header>
+
+  <main class="page">
+    <div id="warnings" class="warn" hidden></div>
+
+    <section id="fatal" class="panel" hidden>
+      <p id="fatal-text" class="error" role="alert"></p>
+      <a href="/">새 상담원 만들기</a>
+    </section>
+
+    <div id="talk-main">
+      <section class="panel" aria-label="질문하기">
+        <div class="mic-area">
+          <button id="mic-btn" class="mic-btn" type="button" aria-label="말로 묻기" aria-pressed="false" hidden>🎤</button>
+          <p id="mic-hint" aria-live="polite">누르고 말씀하세요. 다시 누르면 보냅니다. (최대 15초)</p>
+        </div>
+
+        <label for="ask-input">글자로 묻기</label>
+        <div class="ask-row">
+          <input id="ask-input" type="text" maxlength="500" placeholder="궁금한 것을 적어 주세요" autocomplete="off">
+          <button id="ask-btn" type="button">묻기</button>
+        </div>
+
+        <div id="sample-chips" class="chips" aria-label="예시 질문"></div>
+        <p id="ask-error" class="error" role="alert"></p>
+      </section>
+
+      <section aria-label="대화">
+        <p id="turns-empty">🎤 버튼을 누르거나 예시 질문을 눌러 보세요.</p>
+        <div id="turns" class="turns"></div>
+      </section>
+
+      <div role="tablist" id="tabs" aria-label="상담원 살펴보기">
+        <button id="tab-scorecard" type="button" role="tab" aria-controls="panel-scorecard" aria-selected="true">성적표</button>
+        <button id="tab-ab" type="button" role="tab" aria-controls="panel-ab" aria-selected="false" tabindex="-1">설정 비교(A/B)</button>
+      </div>
+
+      <section id="panel-scorecard" role="tabpanel" aria-labelledby="tab-scorecard">
+        <p class="hint">예상 질문을 자동으로 물어보고 얼마나 맞게 답하는지 확인합니다.</p>
+        <div class="row">
+          <label for="sc-n" style="margin: 0;">질문 수</label>
+          <select id="sc-n" style="width: auto;">
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+          </select>
+          <button id="sc-start" type="button">시험해보기</button>
+        </div>
+        <p id="sc-status" aria-live="polite">대기 중</p>
+        <progress id="sc-progress" max="1" value="0"></progress>
+        <div id="sc-report" hidden>
+          <div class="row">
+            <div>글자 질문 정답 <div id="sc-text-hits" class="stat"></div></div>
+            <div>음성 질문 정답 <div id="sc-voice-hits" class="stat"></div></div>
+          </div>
+          <div class="row">
+            <div>보통 첫 음성까지 <div id="sc-p50" class="stat"></div></div>
+            <div>느릴 때 첫 음성까지 <div id="sc-p95" class="stat"></div></div>
+          </div>
+          <h3>틀린 질문</h3>
+          <ul id="sc-failures"></ul>
+          <h3>고치면 좋은 점</h3>
+          <ul id="sc-hints"></ul>
+          <p id="sc-caveat"></p>
+        </div>
+      </section>
+
+      <section id="panel-ab" role="tabpanel" aria-labelledby="tab-ab" hidden>
+        <p class="hint">같은 질문을 두 설정으로 물어보고 답을 나란히 비교합니다.</p>
+        <label for="ab-question">비교할 질문</label>
+        <input id="ab-question" type="text" maxlength="500">
+        <div class="form-grid">
+          <div>
+            <label for="ab-a-length">A 답 길이</label>
+            <select id="ab-a-length"></select>
+          </div>
+          <div>
+            <label for="ab-b-length">B 답 길이</label>
+            <select id="ab-b-length"></select>
+          </div>
+        </div>
+        <div class="row">
+          <button id="ab-start" type="button">비교하기</button>
+          <span id="ab-status" aria-live="polite"></span>
+        </div>
+        <div id="ab-result" hidden>
+          <div class="ab-side" data-side="a">
+            <h3>A</h3>
+            <p class="ab-answer"></p>
+            <p class="ab-first-audio"></p>
+            <p class="ab-count"></p>
+            <button class="ab-play secondary" type="button" data-side="a">A 듣기</button>
+          </div>
+          <div class="ab-side" data-side="b">
+            <h3>B</h3>
+            <p class="ab-answer"></p>
+            <p class="ab-first-audio"></p>
+            <p class="ab-count"></p>
+            <button class="ab-play secondary" type="button" data-side="b">B 듣기</button>
+          </div>
+          <ul id="ab-notes"></ul>
+        </div>
+      </section>
+
+      <audio id="player" hidden></audio>
+    </div>
+  </main>
+
+  <script src="/static/common.js"></script>
+  <script src="/static/talk.js"></script>
+  <script src="/static/talk-tabs.js"></script>
+</body>
+</html>
