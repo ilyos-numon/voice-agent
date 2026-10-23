@@ -169,7 +169,9 @@ For the 50-question before/after table see "Latency (before / after)" above.
 
 ## Measured retrieval
 
-On this machine (Apple Silicon, CPU), 575 FAQ entries, 42 evaluation queries:
+On this machine (Apple Silicon, CPU), 575 FAQ entries.
+
+### Rule-based set (42)
 
 | top1 | top3 | retrieve p50 | retrieve p95 | index build |
 |---|---|---|---|---|
@@ -181,4 +183,21 @@ Reproduce (prints the same line plus 3 sentinel checks and `RESULT PASS`):
 uv run python scripts/eval_retrieval.py --faq data/faq/faq.jsonl --eval tests/fixtures/faq_eval.jsonl
 ```
 
-What this number means: the evaluation set (`scripts/make_faq_eval.py`) rewrites indexed intent names with fixed rules (dropped endings, swapped word order, keywords only, spaces removed) plus 2 synthetic sentinels. top1 1.000 shows robustness to spelling, spacing and ending variations of known topics only. It is not the accuracy on real users' free-form speech. An evaluation with human-written questions is follow-up work.
+What this number means: the evaluation set (`scripts/make_faq_eval.py`) rewrites indexed intent names with fixed rules (dropped endings, swapped word order, keywords only, spaces removed) plus 2 synthetic sentinels. top1 1.000 shows robustness to spelling, spacing and ending variations of known topics only. It is not the accuracy on real users' free-form speech. See the colloquial set below.
+
+### Colloquial set (46, written by an AI assistant)
+
+46 colloquial questions (written by an AI assistant from a blind brief that hides the indexed intent names; labels audited by a separate AI reviewer before freezing in commit `cd36a9e`): 38 with a known answer + 8 that the FAQ does not cover. No human wrote or labeled these questions.
+
+| n_answerable | top1 | top3 | none_correct (n_none=8) | overall_top1 (n=46) | leak_mean | top1, low leak (< 0.34) | top1, high leak (≥ 0.34) |
+|---|---|---|---|---|---|---|---|
+| 38 | 0.289 | 0.421 | 0.375 | 0.304 | 0.210 | 0.219 (n=32) | 0.667 (n=6) |
+
+Reproduce (first line is the summary above, then one `miss` line per wrong row, last line `RESULT MEASURED`; no accuracy threshold):
+
+```sh
+uv run python scripts/eval_colloquial.py --faq data/faq/faq.jsonl --eval tests/fixtures/faq_eval_colloquial.jsonl
+uv run python scripts/eval_colloquial.py --faq data/faq/faq.jsonl --eval tests/fixtures/faq_eval.jsonl   # leak of the rule-based set
+```
+
+What this number means: `leak` is the share of the correct intent name's character bigrams that appear in the question. The rule-based set has leak_mean 0.815 (all 42 rows high-leak), the colloquial set 0.210, so the colloquial set gives BM25 far fewer surface clues, and top1 drops from 1.000 to 0.289 (0.219 on the 32 low-leak rows). These questions were written by an LLM following `docs/eval-colloquial.md` (writing rules, leak-reduction steps, audit checklist), so they may differ from what real citizens say at a kiosk. none_correct counts a none row as correct only when search returns nothing; with `min_score=0` most out-of-scope questions still get some hit, so it stays low. One miss (c23) returned faq-322, whose answer text is identical to the labeled faq-323; it is still counted as a miss. Improving retrieval (answer-text indexing, morphology, embeddings, a score threshold) is follow-up work (ADR-008).
