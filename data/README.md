@@ -9,6 +9,7 @@ This project uses public or synthetic data only. Raw downloads go to data/raw/ (
 | 합성 FAQ 샘플 | 이 저장소 | CC0 | 2026-10-22 | 5건 |
 | 경기도 시흥시_챗봇 FAQ 시나리오 (공공데이터포털 15148282) | https://www.data.go.kr/data/15148282/fileData.do | 이용허락범위 제한 없음 (공공데이터포털 표기) | 2025-09-01 (다운로드 2026-10-22) | 인텐트명·답변·대분류 열, 전처리 후 570건 → `data/faq/faq.jsonl` |
 | tests/fixtures/faq_eval.jsonl | 이 저장소 (faq.jsonl에서 규칙으로 생성) | CC0 | 2026-10-22 | 질의 42건 (변형 40 + 센티널 2) |
+| tests/fixtures/faq_eval_colloquial.jsonl | 이 저장소 (AI 보조 작성, 지침 docs/eval-colloquial.md) | CC0 | 2026-10-23 | 질의 46건 (답 있음 38 + none 8) |
 | tests/fixtures/ask_faq001_ko.wav | 이 저장소 (Supertonic 3로 합성, 가중치 OpenRAIL-M) | CC0 | 2026-10-22 | 질문 1문장, 사람 목소리 아님, 재생성 scripts/make_fixture_audio.py |
 
 ## Download
@@ -37,3 +38,5 @@ uv sync --extra dev          # openpyxl (XLSX 읽기)
 `data/faq/sample_faq.json` 5건(faq-001~005)은 손으로 작성, 실제 기관 안내 아님. 생성 스크립트·시드는 없다. 수수료·운영 시간 등 문장 속 수치도 예시일 뿐이다. 각 항목은 `id`, `question`, `answer`, `source` 필드를 가진다. `faq.jsonl`에서도 이 5건이 faq-001~005로 맨 앞에 그대로 들어가고(`category` = "합성"), 공개 행은 faq-006부터다. 기존 테스트·음성 픽스처가 faq-001을 기준으로 하기 때문이다.
 
 평가 세트 `tests/fixtures/faq_eval.jsonl`은 `scripts/make_faq_eval.py`(시드 20261022)가 공개 행 중 다른 항목과 겹치지 않는 인텐트명 40개를 골라 규칙 4종으로 변형한다: 각 어절 끝 글자 제거 + "알려주세요", 첫 두 어절 교체 + "어떻게 해요?", 가장 긴 어절 2개 + "궁금해요", 공백 전부 제거 + "?". 여기에 합성 센티널 2건("떼려면/때려면")을 더한다. 사람이 쓴 질문이 아니므로 실제 사용자 발화 정확도를 대표하지 않는다.
+
+구어체 평가 세트 `tests/fixtures/faq_eval_colloquial.jsonl`은 사람이 아니라 AI 보조(LLM 에이전트)가 썼다. `scripts/make_blind_brief.py`(시드 20261023)가 공개 행 38건의 `target_id`·분류·답변 발췌만 담은 brief(인텐트명 없음)를 만들고, 작성 에이전트는 그것만 보고 구어체 질문 38건과 FAQ 범위 밖 질문 8건을 썼다. 별도 AI 리뷰어가 라벨을 감사해 1회 수정한 뒤 커밋 `cd36a9e`로 동결했고, 실제 시민 발화를 대표하지 않는다(절차 `docs/eval-colloquial.md`, 결정 `docs/decisions.md` ADR-008).
