@@ -74,7 +74,7 @@ logger = logging.getLogger(__name__)
 agents_router = APIRouter()
 
 QUEUE_TICK_S = 1.0
-SHARE_PATH = "/static/builder.html?agent="
+SHARE_PATH = "/talk?agent="
 
 ANSWER_LENGTH_LABELS = [("one_sentence", "한 문장"), ("short", "짧게"), ("detailed", "자세히")]
 TONE_LABELS = [("friendly", "친절하게"), ("concise", "간결하게")]

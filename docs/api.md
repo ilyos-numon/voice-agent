@@ -261,7 +261,7 @@ CSV 파일 업로드 UI는 브라우저에서 `await file.text()`로 읽어 `csv
 {"agent_id": "ag_26e38f11fec9", "name": "우리 가게 상담원", "preset_id": null,
  "settings": {"persona_name": "상담원", "tone": "friendly", "voice": "calm_female", "answer_length": "short", "when_unknown": "say_unknown", "handoff_message": "담당자에게 문의해 주세요.", "avoid_topics": [], "summary": false},
  "chunk_count": 2, "created_at": "2026-10-23T03:02:01Z", "expires_at": "2026-10-24T03:02:01Z",
- "share_path": "/static/builder.html?agent=ag_26e38f11fec9",
+ "share_path": "/talk?agent=ag_26e38f11fec9",
  "warnings": [{"code": "empty_row", "message": "4행: 질문 또는 답변이 비어 있어 건너뜁니다"}]}
 ```
 
@@ -271,7 +271,7 @@ CSV 파일 업로드 UI는 브라우저에서 `await file.text()`로 읽어 `csv
 | `preset_id` | 사용자 상담원은 `null`, 프리셋이면 프리셋 id |
 | `chunk_count` | 만들어진 지식 조각 수 |
 | `expires_at` | 지워지는 시각. 프리셋은 `null` |
-| `share_path` | 공유 링크 경로. 기본 URL 뒤에 붙인다. 실제 프론트엔드를 다른 주소에 두면 `agent_id`만 쓰고 링크는 직접 만든다 |
+| `share_path` | 공유 링크 경로(대화 화면 `/talk?agent=<id>`). 기본 URL 뒤에 붙인다. 실제 프론트엔드를 다른 주소에 두면 `agent_id`만 쓰고 링크는 직접 만든다 |
 | `warnings` | 만들기는 됐지만 알려 줄 것. 만들 때 응답에만 있고 `GET`에선 항상 `[]` |
 
 `warnings[].code`: `empty_row`(빈 행 건너뜀), `extra_columns`(셋째 열부터 무시), `duplicate_question`(같은 질문은 첫 행만). `message`에 행 번호가 들어 있다.
@@ -625,10 +625,10 @@ async function ask(agentId, sessionId, text, on) {   // on = {queue, meta, sente
 
 1. `GET /api/options` → 선택지·라벨·기본값·상한으로 폼 그리기 (`voices[].available`, `summary_available`, `voice_input_available` 반영)
 2. 사용자가 텍스트 붙여 넣기 또는 CSV 파일 선택(`file.text()`) → 글자 수를 `limits`로 미리 검사
-3. `POST /api/agents` → 201이면 `warnings`를 노란 알림으로 보여 주고 대화 화면으로. `share_path`(또는 `agent_id`로 만든 링크)를 "공유 링크"로 표시
+3. `POST /api/agents` → 201이면 `warnings`를 노란 알림으로 보여 주고 대화 화면으로. `share_path`(대화 화면 `/talk?agent=<id>`, 또는 `agent_id`로 만든 링크)를 "공유 링크"로 표시
 4. 400/413이면 `detail.message`를 입력 칸 아래에, 422면 `loc`의 필드 칸에 표시
 5. `POST /api/agents/{agent_id}/sessions` → 대화 (7.1의 3~4)
-6. 공유 링크로 들어온 사람: `GET /api/agents/{agent_id}` → 404면 "만료된 링크" 화면, 200이면 세션 열고 대화
+6. 공유 링크(`/talk?agent=<id>`)로 들어온 사람: `GET /api/agents/{agent_id}` → 404면 "만료된 링크" 화면, 200이면 세션 열고 대화
 7. 설정 수정: `PATCH /api/agents/{agent_id}/settings` (바꾼 필드만)
 
 ### 7.3 투명 모드 — 매 턴 영수증 그리기 (시나리오 3)
