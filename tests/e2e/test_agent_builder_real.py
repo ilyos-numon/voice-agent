@@ -3,18 +3,11 @@ import json
 from pathlib import Path
 
 import httpx
-import pytest
 
 from tests.e2e.conftest import BASE_URL
 
 FIXTURE_WAV = Path(__file__).resolve().parents[1] / "fixtures" / "ask_faq001_ko.wav"
 TIMEOUT = 180
-
-# full 모드(음성 인식·합성 실제 모델)가 아니면 파일 전체를 건너뛴다.
-_options = httpx.get(f"{BASE_URL}/api/options", timeout=30).json()
-pytestmark = pytest.mark.skipif(
-    not _options.get("voice_input_available"), reason="full 모드(음성 모델)가 아니면 건너뜀"
-)
 
 
 def _parse_sse(raw: str) -> list[tuple[str, dict]]:
