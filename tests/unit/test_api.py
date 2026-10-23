@@ -41,7 +41,7 @@ def test_ask_not_json_422(client: TestClient) -> None:
 
 
 def test_index_html(client: TestClient) -> None:
-    res = client.get("/")
+    res = client.get("/static/index.html")
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/html")
     assert 'id="timings"' in res.text

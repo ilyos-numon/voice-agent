@@ -60,7 +60,7 @@ def test_stream_each_chunk_voiced(base_url: str) -> None:
 def test_stream_demo_page_shows_playing_sentence(
     page: Page, base_url: str, shot_dir: Path
 ) -> None:
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     page.fill("#question", LONG_QUESTION)
     page.click("#ask")
     page.wait_for_selector('#result[data-state="speaking"]', timeout=20000)

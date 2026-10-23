@@ -4,7 +4,7 @@ from playwright.sync_api import Page, expect
 
 
 def test_demo_page_answers_question(page: Page, base_url: str, shot_dir: Path) -> None:
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     page.screenshot(path=str(shot_dir / "demo-idle.png"), full_page=True)
 
     page.fill("#question", "주민등록등본 떼려면 뭐 필요해요?")
@@ -20,7 +20,7 @@ def test_demo_page_answers_question(page: Page, base_url: str, shot_dir: Path) -
 def test_demo_page_empty_question_shows_error(
     page: Page, base_url: str, shot_dir: Path
 ) -> None:
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     page.fill("#question", "")
     page.click("#ask")
     page.wait_for_selector('#result[data-state="error"]', timeout=5000)

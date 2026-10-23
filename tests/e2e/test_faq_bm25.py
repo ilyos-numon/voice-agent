@@ -36,7 +36,7 @@ def test_bm25_unrelated_query_falls_back(base_url: str) -> None:
 
 
 def test_bm25_demo_page_shows_public_source(page: Page, base_url: str, shot_dir: Path) -> None:
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     page.fill("#question", PUBLIC_QUERY)
     page.click("#ask")
     page.wait_for_selector('#result[data-state="answered"]', timeout=20000)

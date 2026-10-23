@@ -60,7 +60,7 @@ def test_stream_blank_text_422(base_url: str) -> None:
 
 
 def test_stream_demo_page_speaks_sentences(page: Page, base_url: str, shot_dir: Path) -> None:
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     page.fill("#question", QUESTION)
     page.click("#ask")
     page.wait_for_selector('#result[data-state="answered"]', timeout=15000)
