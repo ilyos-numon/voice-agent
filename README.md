@@ -1,10 +1,91 @@
 # voice-agent
 
-Voice assistant for a self-service civic kiosk. Speech in, RAG-grounded answer, speech out, with latency measured per stage.
+투명한 음성 에이전트 빌더. 텍스트나 FAQ CSV를 넣으면 상담원이 생기고, 매 턴 단계별 지연·문장별 근거·검색 후보와 자동 성적표를 API로 돌려준다 (계약 [docs/api.md](docs/api.md)).
+
+A transparent voice agent builder: paste your FAQ, talk to your agent, and see per-turn latency and the source behind every sentence. Speech in, RAG-grounded answer, speech out, with latency measured per stage. (Phase 1, below, is the self-service civic kiosk preset.)
 
 Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retrieval over a public civil-service FAQ (575 entries) + LLM summary by Qwen `qwen3.7-flash` (API, optional; `LLM_BACKEND=qwen`, default is a template stub). Rebuilt on public data.
 
 개인정보: `LLM_BACKEND=qwen` 일 때 질문 문장과 공개 FAQ 답변만 외부 API로 나가며 음성은 외부로 보내지 않는다(STT·TTS 는 기기 안에서 돈다).
+
+## 에이전트 빌더
+
+한 서버 프로세스가 프리셋 4종과 사용자 상담원(최대 200개)을 메모리에 두고, 음성 인식·합성 모델은 하나씩만 올려 함께 쓴다. 상담원마다 자기 문서·말투·목소리·답 길이·모를 때 동작·피할 주제를 가진다. 매 턴 SSE 로 문장마다 음성(WAV)과 근거(어느 조각의 어느 문장인지, 겹침 비율)가 오고, 끝에 단계별 시간(듣기·검색·생각·말하기, 첫 음성까지)과 검색 후보(최대 3개, 제목·점수)가 온다. 근거를 못 찾은 문장은 `supported: false` 로 표시한다. 성적표는 상담원 문서에서 질문을 규칙으로 만들어 글자·음성으로 묻고 적중 수·틀린 질문·힌트를 돌려주는 비동기 작업이고, A/B 비교는 같은 질문을 설정 두 개로 답해 나란히 돌려준다.
+
+- API 계약: [docs/api.md](docs/api.md) (엔드포인트·SSE 이벤트·오류 code·상한·시나리오별 호출 순서). 결정 기록은 `docs/decisions.md` ADR-009.
+- 프론트엔드는 다음 단계다. 지금은 계약 확인용 한 장짜리 페이지 `http://localhost:8765/static/builder.html` 만 있다.
+
+### 실행
+
+```sh
+uv sync --extra dev && uv run uvicorn app.main:app --host localhost --port 8765    # 스텁(무음, 모델 다운로드 없음)
+curl -s localhost:8765/api/presets
+SID=$(curl -s -X POST localhost:8765/api/agents/preset-civil-kiosk/sessions | python3 -c 'import json,sys; print(json.load(sys.stdin)["session_id"])')
+curl -N -X POST localhost:8765/api/agents/preset-civil-kiosk/turns/stream -H 'Content-Type: application/json' -d "{\"session_id\":\"$SID\",\"text\":\"등본 떼려면 뭐 필요해요?\"}"
+```
+
+실제 음성(듣기·말하기)은 1차와 같은 명령으로 띄운다: `uv sync --extra dev --extra tts --extra stt` 후 `STT_BACKEND=whisper TTS_BACKEND=supertonic uv run --extra tts --extra stt uvicorn app.main:app --host localhost --port 8765`. 상담원 만들기·설정 변경·음성 질문·성적표·A/B 호출은 `docs/api.md` 7절.
+
+### 프리셋 4종
+
+| preset_id | 제목 | 지식 조각 | 출처 |
+|---|---|---|---|
+| civil-kiosk | 민원 키오스크 | 575 | 공개 지자체 챗봇 FAQ 570 + 합성 5 (1차와 같은 `data/faq/faq.jsonl`) |
+| restaurant | 식당 주문 안내 | 24 | 가상 식당 합성 FAQ (CC0) |
+| hospital | 병원 접수 안내 | 24 | 가상 병원 합성 FAQ (CC0, 진료·의학 상담 안 함) |
+| office-policy | 사내 규정 Q&A | 24 | 가상 회사 합성 FAQ (CC0) |
+
+데이터 출처·작성 방식은 `data/README.md`.
+
+### 성적표 (프리셋, 질문 30개)
+
+| 프리셋 | 모드 | 글자 적중 | 음성 적중 | 첫 음성 p50 / p95 (ms) | 시간 기준 | 같은 명령 2회차 비교 |
+|---|---|---|---|---|---|---|
+| civil-kiosk | stub | 30/30 | - | 0.4 / 0.6 | 글자 | REPRO OK |
+| restaurant | stub | 30/30 | - | 0.1 / 0.1 | 글자 | REPRO OK |
+| hospital | stub | 30/30 | - | 0.1 / 0.2 | 글자 | REPRO OK |
+| office-policy | stub | 29/30 | - | 0.1 / 0.1 | 글자 | REPRO OK |
+| civil-kiosk | full | 30/30 | 28/30 | 3866.3 / 7047.0 | 음성 | REPRO OK (2회차 3823.7 / 7694.5 ms) |
+| restaurant | full | 30/30 | 28/30 | 3959.9 / 4321.9 | 음성 | 1회만 실행 (비교 안 함) |
+
+- 적중 = 첫 번째 검색 후보가 그 질문을 만든 조각이고 답 종류가 `grounded`. 질문 30개 = 조각 15개 × (원문 그대로 1 + 사람 말투 1).
+- 모드: stub = 기본 설정(음성 인식·합성 스텁, 음성 채널 없음 `voice_unavailable_reason: "stub_audio"`, 시간은 글자 질문 기준). full = STT faster-whisper small(`STT_BACKEND=whisper`)·TTS Supertonic 3(`TTS_BACKEND=supertonic`), LLM 은 템플릿 스텁(요약 없음), Apple Silicon CPU. full 의 첫 음성 시간은 음성 질문 턴 기준이라 듣기(STT)가 포함된다.
+- 틀린 것: office-policy stub 1건은 사람 말투 글자 질문이 다른 조각을 찾음(`wrong_chunk`). full 의 음성 오답 2건씩은 모두 글자로는 맞혔는데 음성으로 틀림(`misheard`). civil-kiosk full 은 1·2회차 틀린 질문 id 가 같다.
+- 2회차 비교(`--check-against`)는 글자·음성 적중 수와 틀린 질문 id 만 비교하고 시간은 비교하지 않는다. 그래서 civil-kiosk full 은 시간이 달라도 REPRO OK 다.
+- 숫자는 아래 명령이 쓴 JSON 의 `text`·`voice`·`first_audio_ms` 값 그대로다(서버가 ms 를 소수 1자리로 반올림, 추가 반올림 없음). JSON·로그는 `.ai/tasks/T-20261023-agent-builder/logs/` 의 `sc-*.json`, `s12-stub.log`, `s12-full.log`.
+
+CAVEAT: 성적표 질문은 문서에서 규칙으로 만든 것(제목 그대로, 어미·어순 바꾸기)이라 실제 사용자 질문보다 쉽다. 1차의 같은 종류 규칙 세트는 top1 1.000, AI 가 쓴 구어체 세트는 0.289 였다(아래 "Measured retrieval", ADR-008). 음성 질문도 사람 목소리가 아니라 Supertonic 으로 합성한 음성(`calm_male`)이다. 그래서 이 점수는 "문서에 있는 표현으로 물으면 찾는가"를 볼 뿐 실사용 정확도가 아니다. 보고서에도 같은 주의 문구(`caveat`)가 늘 붙는다.
+
+재현 (stub, 4종 합계 약 1초):
+
+```sh
+uv sync --extra dev
+OUT=.ai/tasks/T-20261023-agent-builder/logs
+for p in civil-kiosk restaurant hospital office-policy; do
+  uv run --no-sync python scripts/scorecard.py --preset $p --n 30 --out $OUT/sc-$p-stub-1.json
+  uv run --no-sync python scripts/scorecard.py --preset $p --n 30 --out $OUT/sc-$p-stub-2.json --check-against $OUT/sc-$p-stub-1.json   # REPRO OK|DIFF
+done
+```
+
+재현 (full, 이번 실행 civil-kiosk 1회 약 5분 반·restaurant 약 4분, 로그의 시작·끝 시각 기준):
+
+```sh
+uv sync --extra dev --extra tts --extra stt
+OUT=.ai/tasks/T-20261023-agent-builder/logs
+STT_BACKEND=whisper TTS_BACKEND=supertonic uv run --no-sync python scripts/scorecard.py --preset civil-kiosk --n 30 --out $OUT/sc-civil-kiosk-full-1.json
+STT_BACKEND=whisper TTS_BACKEND=supertonic uv run --no-sync python scripts/scorecard.py --preset civil-kiosk --n 30 --out $OUT/sc-civil-kiosk-full-2.json --check-against $OUT/sc-civil-kiosk-full-1.json
+STT_BACKEND=whisper TTS_BACKEND=supertonic uv run --no-sync python scripts/scorecard.py --preset restaurant --n 30 --out $OUT/sc-restaurant-full-1.json
+```
+
+`scripts/scorecard.py` 는 서버 없이 프로세스 안에서 돈다. 각 실행은 `SCORECARD preset=… text=… voice=… p50_ms=… p95_ms=…` 한 줄을 찍고 `<out>` JSON 과 `<out>.md` 표를 쓴다.
+
+### 지키는 것
+
+- 음성은 서버 밖으로 나가지 않는다. 음성 인식·합성은 서버 프로세스 안에서 돈다.
+- 요약을 켠 상담원에서만, 서버에 LLM 키가 있을 때만 질문 문장과 근거 조각 몇 개가 외부 LLM API 로 간다. 기본은 꺼짐이다.
+- 올린 문서는 그 상담원에만 쓰이고 메모리에만 있다(디스크·DB 저장 없음). 상담원·세션은 기본 24시간(`AGENT_TTL_HOURS`) 뒤 지워지고, 서버를 재시작하면 프리셋을 뺀 전부가 사라진다. 계정·쿠키가 없고 질문 기록을 따로 쌓지 않는다.
+- 상한 (기본값, 환경변수로 바꿈): 사용자 상담원 200개(`MAX_AGENTS`), 텍스트 20,000자(`MAX_TEXT_CHARS`), CSV 300행(`MAX_CSV_ROWS`)·100,000자(`MAX_CSV_CHARS`), 세션당 질문 30개(`SESSION_MAX_QUESTIONS`), 동시 턴 2(`TURN_CONCURRENCY`)·대기열 8(`TURN_QUEUE_MAX`), 성적표 실행 1개 + 대기 4(`SCORECARD_QUEUE_MAX`). 질문 500자, 녹음 10 MiB 는 고정. 넘으면 413·429·503 과 오류 code 로 알린다(`docs/api.md` 2·4절).
+- 프리셋 상담원은 읽기 전용이라 고치거나 지울 수 없다(403 `preset_read_only`).
 
 ## Latency (before / after)
 

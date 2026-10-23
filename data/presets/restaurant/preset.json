@@ -1,0 +1,19 @@
+{
+  "preset_id": "restaurant",
+  "order": 2,
+  "title": "식당 주문 안내",
+  "description": "식당 키오스크 옆에서 영업시간, 주문·결제, 포장, 메뉴 옵션을 안내합니다. 가상의 식당을 가정해 만든 합성 FAQ 24건으로 답합니다.",
+  "name": "식당 주문 상담원",
+  "sample_questions": [
+    "영업시간이 어떻게 돼요?",
+    "포장 주문도 되나요?",
+    "키오스크로 주문하는 방법 알려주세요"
+  ],
+  "settings": {
+    "persona_name": "주문 도우미",
+    "tone": "friendly",
+    "voice": "bright_female"
+  },
+  "source": {"kind": "faq_csv", "path": "faq.csv"},
+  "license": "CC0-1.0"
+}

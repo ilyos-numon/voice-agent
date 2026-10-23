@@ -45,8 +45,10 @@ class QwenLLM:
         model: str,
         timeout_s: float,
         opener: Opener | None = None,
+        system_prompt: str = SYSTEM_PROMPT,
     ) -> None:
         self._api_key = api_key
+        self._system_prompt = system_prompt
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._model = model
         self._timeout_s = timeout_s
@@ -61,7 +63,7 @@ class QwenLLM:
         body = {
             "model": self._model,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": self._system_prompt},
                 {"role": "user", "content": f"질문: {query}\n근거({top.id}): {top.answer}"},
             ],
             "stream": True,

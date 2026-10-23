@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>상담원 만들기</title>
+  <link rel="stylesheet" href="/static/builder.css">
+</head>
+<body>
+  <main class="builder">
+    <h1>내 음성 상담원</h1>
+
+    <section class="panel" aria-labelledby="h-presets">
+      <h2 id="h-presets">1. 바로 체험하기</h2>
+      <div id="preset-list" class="preset-list"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-create">
+      <h2 id="h-create">2. 내 상담원 만들기</h2>
+      <div class="form-grid">
+        <label for="kn-kind">자료 형식</label>
+        <select id="kn-kind">
+          <option value="text">글 붙여 넣기</option>
+          <option value="faq_csv">자주 묻는 질문 표 (질문,답변)</option>
+        </select>
+        <label for="kn-input">자료</label>
+        <textarea id="kn-input" rows="6" placeholder="안내문이나 자주 묻는 질문을 붙여 넣으세요."></textarea>
+        <label for="persona-name">상담원 이름</label>
+        <input type="text" id="persona-name" value="상담원" maxlength="20" autocomplete="off">
+        <label for="answer-length">답 길이</label>
+        <select id="answer-length"></select>
+      </div>
+      <div class="row">
+        <button id="create-btn" type="button">만들기</button>
+        <span class="muted">지금 상담원: <strong id="agent-id">없음</strong></span>
+        <span id="agent-name" class="muted"></span>
+      </div>
+      <p id="create-error" class="error" role="alert"></p>
+      <p id="create-warnings" class="warn-note"></p>
+      <p id="share-link" class="muted"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-chat">
+      <h2 id="h-chat">3. 물어보기</h2>
+      <div class="row">
+        <input type="text" id="ask-input" maxlength="500" placeholder="질문을 입력하세요" autocomplete="off">
+        <button id="ask-btn" type="button">묻기</button>
+      </div>
+      <div class="row">
+        <label class="toggle"><input type="checkbox" id="transparent-toggle" checked> 투명 모드 (근거·걸린 시간 보기)</label>
+        <span class="muted">남은 질문 <strong id="questions-left">-</strong></span>
+        <span id="queue-status" class="queue" aria-live="polite"></span>
+      </div>
+      <p id="sample-questions" class="samples"></p>
+      <p id="ask-error" class="error" role="alert"></p>
+      <div id="chat-log" class="chat-log transparent" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-sc">
+      <h2 id="h-sc">4. 성적표</h2>
+      <div class="row">
+        <label for="sc-n">질문 수</label>
+        <input type="number" id="sc-n" value="30" min="10" max="30">
+        <button id="scorecard-btn" type="button">시험해보기</button>
+        <span id="scorecard-status" class="muted" aria-live="polite"></span>
+      </div>
+      <div id="scorecard-report" class="report" hidden>
+        <table>
+          <tr><th>맞는 근거를 찾음 (글자 질문)</th><td id="sc-text-hits">-</td></tr>
+          <tr><th>맞는 근거를 찾음 (음성 질문)</th><td id="sc-voice-hits">-</td></tr>
+          <tr><th>첫 음성까지 (보통)</th><td id="sc-p50">-</td></tr>
+          <tr><th>첫 음성까지 (느릴 때)</th><td id="sc-p95">-</td></tr>
+        </table>
+        <h3>틀린 질문</h3>
+        <ul id="sc-failures"></ul>
+        <h3>개선 힌트</h3>
+        <ul id="sc-hints"></ul>
+        <p id="sc-caveat" class="muted"></p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-ab">
+      <h2 id="h-ab">5. 두 설정 비교하기</h2>
+      <div class="row">
+        <label for="ab-a-length">A 답 길이</label>
+        <select id="ab-a-length"></select>
+        <label for="ab-b-length">B 답 길이</label>
+        <select id="ab-b-length"></select>
+        <button id="ab-btn" type="button">비교하기</button>
+        <span id="ab-status" class="muted" aria-live="polite"></span>
+      </div>
+      <p class="muted">질문 칸의 내용으로 비교합니다.</p>
+      <div id="ab-result" class="ab-result">
+        <div class="ab-side" data-side="a">
+          <h3>A</h3>
+          <p class="ab-first-audio"></p>
+          <div class="ab-sentences"></div>
+          <button type="button" class="ab-play" data-side="a">A 듣기</button>
+        </div>
+        <div class="ab-side" data-side="b">
+          <h3>B</h3>
+          <p class="ab-first-audio"></p>
+          <div class="ab-sentences"></div>
+          <button type="button" class="ab-play" data-side="b">B 듣기</button>
+        </div>
+        <ul id="ab-notes" class="ab-notes"></ul>
+      </div>
+    </section>
+
+    <audio id="player" hidden></audio>
+  </main>
+  <script src="/static/builder.js"></script>
+</body>
+</html>
