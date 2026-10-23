@@ -21,7 +21,7 @@ Qwen 요약 구성 (현재, `LLM_BACKEND=qwen`, before·after 모두 Qwen):
 | LLM (p50) | 1266.0 ms | 1248.2 ms | Qwen qwen3.7-flash (API) |
 | TTS (p50) | 2938.8 ms | 3291.1 ms | after 는 문장별 합 |
 | TTS RTF (동시 1) | 0.19 | 0.20 | tts_ms / 음성 길이 |
-| 동시 4 요청 | 미측정 | 미측정 | 이번 범위 밖 |
+| 동시 4 요청 | 미측정 | 아래 추가 표 (summary-extra.md) | 구성은 표 아래 설명 |
 | 검색 적중 (top1 = 질문 id) | 150/150 | 150/150 | |
 | 요청 수 (오류) | 150 (0) | 150 (0) | 50 질문 × 3 회 |
 
@@ -30,6 +30,21 @@ Qwen 요약 구성 (현재, `LLM_BACKEND=qwen`, before·after 모두 Qwen):
 실행 구성: 글자 입력(STT 미사용), 검색 BM25(`RETRIEVER_BACKEND=bm25`, 공개 FAQ 575건), LLM Qwen `qwen3.7-flash`(`LLM_BACKEND=qwen`, 키는 `.env` 의 `LLM_API_KEY`, 근거 FAQ 1건을 1~3문장으로 요약, 스트리밍), TTS Supertonic 3(`TTS_BACKEND=supertonic`), Apple Silicon CPU, 동시 1요청. after 는 LLM 이 첫 조각을 내는 즉시 그 조각의 TTS 를 시작한다(ADR-007). `/health` 의 `pipeline_mode` 가 `"stub"` 로 기록되지만, 이는 `app/config.py` 의 기본값이자 `build_pipeline` 이 받는 유일한 값(`app/pipeline/runner.py`)일 뿐이고 실제 STT·검색·LLM·TTS 백엔드는 위 `*_BACKEND` 환경변수로 따로 고른다.
 
 LLM 스텁 구성 (이전 측정, 참고): LLM 을 템플릿 스텁(원문 답변 그대로, LLM 0.0 ms)으로 둔 같은 bench 에서 첫 음성 p50 / p95 는 before 4986.1 / 8220.0 ms, after 871.1 / 2214.4 ms 였다. 원본 표는 `git show 11136b7:bench/results/summary.md`. 스텁은 원문 전체를 읽어 TTS 가 길고(after TTS p50 5394.1 ms), Qwen 구성은 답을 1~3문장으로 줄여 TTS 가 짧은 대신(3291.1 ms) 첫 음성 앞에 LLM 첫 조각 대기가 붙는다. 두 구성은 답변 길이가 달라 첫 음성·전체 시간을 직접 비교하지 않는다.
+
+### 동시 요청·음성 입력 (추가 측정)
+
+| 지표 | 글자 동시 1 | 글자 동시 4 | 음성 입력 동시 1 | 비고 |
+|---|---|---|---|---|
+| 첫 음성까지 (p50 / p95) | 898.2 / 2200.1 ms | 1523.4 / 3863.6 ms | 3704.0 / 5119.9 ms | 서버 측 first_audio_ms |
+| 전체 응답 (p50 / p95) | 5687.5 / 11915.8 ms | 9171.4 / 18844.6 ms | 8075.9 / 13632.0 ms | total_ms |
+| 클라이언트 첫 음성 (p50 / p95) | 901.0 / 2203.8 ms | 1533.6 / 3874.6 ms | 3707.8 / 5126.2 ms | 요청 전송 ~ 첫 audio 이벤트, 동시 4 는 경합 포함 |
+| STT (p50) | 0.0 ms | 0.0 ms | 2738.7 ms | 음성 입력만 실제 STT |
+| LLM (p50) | 0.0 ms | 0.0 ms | 0.0 ms | |
+| TTS (p50) | 5677.7 ms | 9152.0 ms | 5260.6 ms | 문장별 합 |
+| 검색 적중 (top1 = 질문 id) | 150/150 | 150/150 | 135/150 | 음성은 STT 오인식 포함 |
+| 요청 수 (오류) | 150 (0) | 150 (0) | 150 (0) | 50 질문 × 3 회 |
+
+구성: LLM 템플릿 스텁(`LLM_BACKEND=stub`, 원문 답변 그대로), STT faster-whisper small(`STT_BACKEND=whisper`), TTS Supertonic 3(`TTS_BACKEND=supertonic`), 검색 BM25(`RETRIEVER_BACKEND=bm25`), Apple Silicon CPU, 엔드포인트 `/api/ask-stream`(글자)·`/api/ask-audio-stream`(음성). 질문 음성은 `bench/make_audio.py` 가 Supertonic 으로 합성한 WAV 라 실제 사람 발화보다 깨끗하다. 이 표는 LLM 스텁 구성이고 위 본 표는 Qwen 구성이라 LLM·답변 길이가 달라 두 표의 수치를 직접 비교하지 않는다.
 
 검색·STT 의 `0.0 ms` 는 기록 단위가 0.1 ms(소수 1자리 반올림)라서 나온 값이다. BM25 검색은 300개 레코드 중 대부분이 0.0 또는 0.1 ms(p50 < 0.1 ms), 최댓값 3.4 ms(`bench/results/*.jsonl` 의 `stages.retrieve_ms`).
 
@@ -44,6 +59,19 @@ LLM_BACKEND=qwen STT_BACKEND=whisper TTS_BACKEND=supertonic RETRIEVER_BACKEND=bm
 ./bench/run.sh --config after
 ./bench/summarize.sh               # bench/results/summary.md + waterfall.svg
 ```
+
+추가 표 재현 (LLM 스텁 서버, API 호출 없음, 합계 약 45분 — 이번 측정 c1 15분·c4 7분·audio 22분, jsonl 헤더 `started_at` 과 파일 기록 시각 기준):
+
+```sh
+STT_BACKEND=whisper TTS_BACKEND=supertonic RETRIEVER_BACKEND=bm25 FAQ_PATH=data/faq/faq.jsonl LLM_BACKEND=stub uv run --extra tts --extra stt uvicorn app.main:app --host localhost --port 8765 &
+uv run --extra tts --extra stt python bench/make_audio.py           # 질문 WAV 50개 → bench/audio/ (git 무시)
+./bench/run.sh --config after --runs 3 --out bench/results/after-c1.jsonl
+./bench/run.sh --config after --concurrency 4 --runs 3 --out bench/results/after-c4.jsonl
+./bench/run.sh --config audio --runs 3 --out bench/results/audio.jsonl
+./bench/summarize.sh --c1 bench/results/after-c1.jsonl --c4 bench/results/after-c4.jsonl --audio bench/results/audio.jsonl   # + summary-extra.md
+```
+
+`--out` 없이 돌리면 Qwen 구성의 `bench/results/after.jsonl` 을 덮어쓴다.
 
 ## Run
 
@@ -66,7 +94,7 @@ uv sync --extra dev --extra tts --extra stt
 STT_BACKEND=whisper TTS_BACKEND=supertonic uv run --extra tts --extra stt uvicorn app.main:app --host localhost --port 8765
 ```
 
-Open http://localhost:8765. Press 🎤, speak, press 🎤 again to send (recording stops on its own after 15 s; the browser asks for microphone permission once). Typing a question and pressing the button still works. The answer audio tries to autoplay; if the browser blocks it, use the play button.
+Open http://localhost:8765. Press 🎤, speak, press 🎤 again to send (recording stops on its own after 15 s; the browser asks for microphone permission once). Typing a question and pressing the button still works. The answer audio tries to autoplay; if the browser blocks it, use the play button. Asking a new question while an answer is playing stops the previous audio, and late audio from the earlier request is ignored.
 
 - STT: `Systran/faster-whisper-small`, CPU int8. First run downloads about 484 MB (model.bin) into `~/.cache/huggingface/hub/` (stored in the shared `blobs/` folder). License: code MIT, weights MIT.
 - TTS: `TTS_VOICE` selects the speaker, `F1`~`F5` or `M1`~`M5` (default `F1`). First run downloads about 385~415 MB of ONNX weights into `~/.cache/supertonic3/` (override with `SUPERTONIC_CACHE_DIR`).
