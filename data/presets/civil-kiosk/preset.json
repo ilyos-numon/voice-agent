@@ -1,0 +1,19 @@
+{
+  "preset_id": "civil-kiosk",
+  "order": 1,
+  "title": "민원 키오스크",
+  "description": "무인 민원 발급기 앞에서 증명서 발급, 전입신고, 여권 같은 민원 절차를 안내합니다. 공개 지자체 챗봇 FAQ 570건과 합성 5건으로 답합니다.",
+  "name": "민원 키오스크 상담원",
+  "sample_questions": [
+    "주민등록등본 발급에 필요한 게 뭐예요?",
+    "여권 발급 절차를 알려주세요",
+    "인감증명서 대리 발급이 되나요?"
+  ],
+  "settings": {
+    "persona_name": "민원 도우미",
+    "tone": "friendly",
+    "voice": "calm_female"
+  },
+  "source": {"kind": "faq_jsonl", "path": "../../faq/faq.jsonl"},
+  "license": "공공데이터포털 이용허락범위 제한 없음 (합성 5건은 CC0-1.0)"
+}

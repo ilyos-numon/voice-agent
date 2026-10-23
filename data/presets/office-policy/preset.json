@@ -1,0 +1,19 @@
+{
+  "preset_id": "office-policy",
+  "order": 4,
+  "title": "사내 규정 Q&A",
+  "description": "직원이 묻는 연차, 근무시간, 경비 정산, 증명서 발급 같은 사내 규정을 안내합니다. 가상의 회사를 가정해 만든 합성 FAQ 24건으로 답합니다.",
+  "name": "사내 규정 상담원",
+  "sample_questions": [
+    "연차는 며칠 받을 수 있어요?",
+    "재택근무 가능한가요?",
+    "출장비 정산은 어떻게 해요?"
+  ],
+  "settings": {
+    "persona_name": "규정 도우미",
+    "tone": "concise",
+    "voice": "calm_male"
+  },
+  "source": {"kind": "faq_csv", "path": "faq.csv"},
+  "license": "CC0-1.0"
+}

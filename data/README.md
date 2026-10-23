@@ -40,3 +40,18 @@ uv sync --extra dev          # openpyxl (XLSX 읽기)
 평가 세트 `tests/fixtures/faq_eval.jsonl`은 `scripts/make_faq_eval.py`(시드 20261022)가 공개 행 중 다른 항목과 겹치지 않는 인텐트명 40개를 골라 규칙 4종으로 변형한다: 각 어절 끝 글자 제거 + "알려주세요", 첫 두 어절 교체 + "어떻게 해요?", 가장 긴 어절 2개 + "궁금해요", 공백 전부 제거 + "?". 여기에 합성 센티널 2건("떼려면/때려면")을 더한다. 사람이 쓴 질문이 아니므로 실제 사용자 발화 정확도를 대표하지 않는다.
 
 구어체 평가 세트 `tests/fixtures/faq_eval_colloquial.jsonl`은 사람이 아니라 AI 보조(LLM 에이전트)가 썼다. `scripts/make_blind_brief.py`(시드 20261023)가 공개 행 38건의 `target_id`·분류·답변 발췌만 담은 brief(인텐트명 없음)를 만들고, 작성 에이전트는 그것만 보고 구어체 질문 38건과 FAQ 범위 밖 질문 8건을 썼다. 별도 AI 리뷰어가 라벨을 감사해 1회 수정한 뒤 커밋 `cd36a9e`로 동결했고, 실제 시민 발화를 대표하지 않는다(절차 `docs/eval-colloquial.md`, 결정 `docs/decisions.md` ADR-008).
+
+## 프리셋
+
+빌더 상담원 프리셋 4종은 `data/presets/<preset_id>/preset.json`에 있고 `app/agents/presets.py`의 `load_presets`가 `order` 순으로 읽는다. `source.path`는 프리셋 폴더 기준 경로다.
+
+| preset_id | 제목 | 출처 | 작성 | 라이선스 | 행 수 |
+|---|---|---|---|---|---|
+| civil-kiosk | 민원 키오스크 | `data/faq/faq.jsonl` 참조 (위 Sources의 공개 FAQ 570 + 합성 5) | 전처리 스크립트 (`scripts/prepare_faq.py`) | 공공데이터포털 이용허락범위 제한 없음 · 합성 5건 CC0 | 575 |
+| restaurant | 식당 주문 안내 | 합성 (`faq.csv`) | AI 보조 | CC0 | 24 |
+| hospital | 병원 접수 안내 | 합성 (`faq.csv`) | AI 보조 | CC0 | 24 |
+| office-policy | 사내 규정 Q&A | 합성 (`faq.csv`) | AI 보조 | CC0 | 24 |
+
+- 합성 FAQ 3종은 실제 업체·기관 안내가 아니다. 업체·사람·지역 고유명사 없이 "이 식당", "본원", "우리 회사"로 썼고, 시간·금액 같은 수치는 예시다. 병원 FAQ는 접수·서류·주차·운영시간만 다루고 진료·의학 조언은 넣지 않았다.
+- CSV 형식은 `질문,답변` 헤더 + 24행, 답변 40~200자, 행마다 2~3문장(답변 길이 A/B 비교용). 생성 스크립트·시드는 없다.
+- 청크 규칙: civil-kiosk는 원본 `id`·`question`(제목·색인)·`answer`를 그대로 쓰고, CSV 프리셋은 `parse_faq_csv` 결과(`q-001`부터)를 쓴다. 둘 다 `origin = "preset"`.
