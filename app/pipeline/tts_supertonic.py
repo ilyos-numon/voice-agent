@@ -47,6 +47,20 @@ class SupertonicTTS:
         if warm_up:
             self.synthesize("안녕하세요")
 
+    def for_voice(self, voice: str) -> "SupertonicTTS":
+        """같은 모델(self._tts)을 공유하고 voice style만 새로 읽은 형제 객체. 없는 이름이면 ValueError."""
+        try:
+            style = self._tts.get_voice_style(voice_name=voice)
+        except FileNotFoundError as e:
+            raise ValueError(f"unknown voice: {voice}") from e
+        sibling = object.__new__(SupertonicTTS)
+        sibling.lang = self.lang
+        sibling.total_steps = self.total_steps
+        sibling._tts = self._tts
+        sibling._style = style
+        sibling.sample_rate = self.sample_rate
+        return sibling
+
     def _is_supported(self, ch: str) -> bool:
         is_valid, _unsupported = self._tts.model.text_processor.validate_text(ch)
         return bool(is_valid)
