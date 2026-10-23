@@ -12,25 +12,44 @@ def client() -> Iterator[TestClient]:
         yield c
 
 
-def test_root_is_home_page(client: TestClient) -> None:
-    res = client.get("/")
+def test_root_redirects_to_studio(client: TestClient) -> None:
+    res = client.get("/", follow_redirects=False)
+    assert res.status_code == 307
+    assert res.headers["location"] == "/studio"
+
+
+def test_talk_redirects_to_studio_app(client: TestClient) -> None:
+    res = client.get("/talk?agent=x", follow_redirects=False)
+    assert res.status_code == 307
+    assert res.headers["location"] == "/studio/app?agent=x"
+
+
+def test_studio_page(client: TestClient) -> None:
+    res = client.get("/studio")
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/html")
-    assert 'data-page="home"' in res.text
-    assert 'id="timings"' not in res.text
+    assert 'data-page="studio"' in res.text
 
 
-def test_talk_page(client: TestClient) -> None:
-    res = client.get("/talk?agent=x")
+def test_studio_app_page(client: TestClient) -> None:
+    res = client.get("/studio/app")
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/html")
-    assert 'data-page="talk"' in res.text
+    assert 'data-page="workspace"' in res.text
 
 
-def test_kiosk_demo_still_served(client: TestClient) -> None:
-    res = client.get("/static/index.html")
+def test_kiosk_demo_served_from_archive(client: TestClient) -> None:
+    res = client.get("/static/archive/kiosk/index.html")
     assert res.status_code == 200
     assert 'id="timings"' in res.text
+
+
+def test_two_page_talk_served_from_archive(client: TestClient) -> None:
+    assert client.get("/static/archive/two-page/talk.html").status_code == 200
+
+
+def test_old_kiosk_path_removed(client: TestClient) -> None:
+    assert client.get("/static/index.html").status_code == 404
 
 
 def test_builder_page_removed(client: TestClient) -> None:
