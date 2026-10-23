@@ -393,6 +393,7 @@ Status: Accepted · Date: 2026-10-23
 
 Date: 2026-10-23
 Status: Accepted (ADR-009 의 계약 확인용 `builder.*` 화면과 `share_path` 값을 대체한다)
+대체됨: ADR-011
 
 ### Context
 
@@ -423,3 +424,40 @@ Status: Accepted (ADR-009 의 계약 확인용 `builder.*` 화면과 `share_path
 - 화면에서 상담원 설정 고치기·지우기, 지식 조각 목록, 요약 스위치는 없다(API 로만). 대기열 표시("앞에 N명")는 실제 동시 요청이 필요해 E2E 없이 코드 리뷰로만 확인한다.
 - stub 서버 E2E 회귀에서 빼는 파일이 `test_two_page_voice_real.py` 를 더해 8개가 됐다(README Test 절).
 - 이 결정이 틀리게 되는 경우: 화면이 세 장 이상으로 늘거나 페이지 사이 상태가 많아질 때(그때 SPA·모듈 재검토), 공개 배포에서 공유 링크가 재시작 뒤에도 살아야 할 때(ADR-009 저장 결정과 함께 재검토).
+
+## ADR-011: Stitch 최종 화면으로 교체 (탐색 `/studio` → 워크스페이스 `/studio/app?agent=`)
+
+Date: 2026-10-23
+Status: Accepted (ADR-010 의 두 페이지 화면을 대체한다. `share_path` 는 그대로 둔다)
+
+### Context
+
+ADR-010 의 두 페이지 화면은 계약을 확인하는 데는 충분했지만, 상담원 고르기·만들기·대화·자료·설정·성적표·A/B 를 한 흐름으로 보여 주는 화면이 아니었다. Stitch 로 화면 시안 7장을 만들었고(`design/stitch/README.md`), 이 중 무엇을 쓸지, 시안의 스크립트와 수치를 어떻게 다룰지 정해야 했다. 제약은 ADR-010 과 같다: CDN·번들러·새 의존성 없음, 같은 출처, 백엔드 API·`docs/api.md` 는 바꾸지 않음.
+
+### Decision
+
+1. **최종 화면 3장**: #1 `1_fab34a`(탐색, `/studio`), #3 `3_eb37d0`(워크스페이스, `/studio/app`), #5 `5_da2b7a`(#3 의 네트워크 실패 패널). 근거는 HTML 을 직접 확인한 결과다: #1 은 탐색 시안 중 유일하게 스크립트가 `/api/presets`·`/api/options`·`/api/agents` 를 부르고, #3 은 #2 의 상위 집합(근거 배지·자료 목록·성적표·A/B 패널이 각 API 에 연결)이며 404 복구 카드를 갖는다.
+2. **마크업만 가져오고 스크립트는 새로 쓴다**: 시안의 마크업·Tailwind 클래스는 `app/static/studio/{studio.html,workspace.html}` 로 옮기고 인라인 스크립트는 버린다. 스크립트는 `api.js`(공통), `studio.js`, `ws-core.js`, `ws-chat.js`, `ws-knowledge.js`, `ws-settings.js`, `ws-scorecard.js`, `ws-compare.js` 로 나누고 `window.StudioAPI`·`window.WS` 로만 주고받는다.
+3. **같은 출처 벤더링**: Tailwind Play 런타임 3.4.16(forms·container-queries 플러그인)과 Material Symbols Outlined 서브셋(고정 아이콘 목록)을 `app/static/studio/vendor/` 에 두고 출처·버전·라이선스·SHA-256·재생성 명령을 `vendor/README.md` 에 적는다. 글꼴은 시스템 한국어 글꼴로 대체한다.
+4. **라우트**: `/studio`·`/studio/app` 은 `app/static/studio/` 파일을 돌려주고, `/` 는 `/studio` 로, `/talk` 는 쿼리를 그대로 붙여 `/studio/app` 으로 307 리다이렉트한다. `share_path`(`/talk?agent=<id>`)는 바꾸지 않는다. 옛 링크는 리다이렉트로 살고, 워크스페이스는 `agent_id` 로 자기 공유 주소를 만든다(`docs/api.md` §5.3 이 허용).
+5. **내 상담원 목록**: 서버 목록 API 를 추가하지 않는다. 만들 때 `localStorage` 에 id 를 적고, 열 때 `GET /api/agents/{id}` 로 확인해 404 면 지운다.
+6. **근거 없는 수치·요소 제거**: 백엔드에 출처가 없는 것은 화면에서 뺀다. 가동률·평균 지연·카드별 평균 응답·프리셋 버전·등급 글자, 사용자 아바타·이름, 목소리 미리듣기, 시스템 프롬프트·말하기 속도·온도, "영구 보관으로 저장"·"설정 복제하기"·만료 시뮬레이션·상태 시뮬레이션 버튼, 목(Mock) 토글. 서버 상태는 `GET /health`, 능력은 `GET /api/options` 의 값만 보여 준다. 기능 소개 문구도 `docs/api.md` 에 있는 동작(음성은 서버 밖으로 나가지 않음, 답마다 근거와 시간, 자동 성적표)으로 바꾼다.
+7. **보관**: 쓰지 않는 Stitch 시안 #0·#2·#4·#6 은 `design/stitch/archive/`, 두 페이지 화면은 `app/static/archive/two-page/`, 1차 키오스크는 `app/static/archive/kiosk/`(계속 제공, `/static/archive/kiosk/index.html` 에서 E2E), 두 페이지 E2E 는 `tests/archive/e2e/`(pytest 수집 제외). 파일 내용은 바꾸지 않고 옮기기만 하며, 옛 경로·대체 화면 표는 각 폴더의 `README.md` 에 둔다.
+
+### 대안과 미채택 이유
+
+| 대안 | 미채택 이유 |
+|------|-------------|
+| 시안 #6(가동률 표시판) 또는 #2(정적 성적표) | API 호출이 없고 백엔드에 없는 수치를 보여 준다 |
+| 시안 인라인 스크립트를 그대로 사용 | 목 모드·하드코딩 선택지가 섞여 있고 한 파일이 커서 단계별로 나눠 고치기 어렵다 |
+| Tailwind CLI 로 정적 CSS 빌드 | 빌드 도구가 생기고 스크립트 단계마다 다시 빌드해야 한다. Play 런타임은 스크립트가 붙이는 클래스도 처리한다 |
+| CDN 의 Tailwind·Google Fonts 직접 로드 | 같은 출처 원칙과 오프라인 데모가 깨진다 |
+| `share_path` 를 `/studio/app?agent=` 로 변경 | API·`docs/api.md` 드리프트가 생기고, 리다이렉트로 같은 결과를 얻는다 |
+| 서버에 상담원 목록 API 추가 | 계정이 없어 "내 것" 을 서버가 구분할 수 없고, 백엔드를 건드리지 않는 범위를 넘는다 |
+
+### 결과
+
+- Play 런타임이 브라우저에서 CSS 를 만들기 때문에 첫 렌더 전에 스크립트를 내려받아 실행하고, 콘솔에 운영용이 아니라는 경고가 뜬다. 포트폴리오 데모로는 받아들인다.
+- 서브셋에 없는 아이콘은 글자로 보인다. 아이콘을 늘릴 때는 `vendor/README.md` 의 목록과 재생성 명령을 따른다.
+- README 스크린샷(`docs/images/two-page-*.png`)은 옛 화면 그대로다(재촬영은 별도 태스크).
+- 이 결정이 틀리게 되는 경우: 화면 수나 상호작용이 늘어 Play 런타임의 첫 렌더 비용이 문제될 때(그때 CLI 빌드 재검토), 공유 링크를 서버 밖 프론트엔드에서 열어야 할 때(그때 `share_path` 와 CORS 재검토), 여러 브라우저에서 같은 "내 상담원" 목록이 필요할 때(그때 계정·목록 API 재검토).
