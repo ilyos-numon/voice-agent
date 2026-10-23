@@ -85,7 +85,7 @@ def test_new_question_stops_previous_audio(autoplay_page: Page, base_url: str, s
             fulfill_sse(route, answer_events("2", "두번째 답변입니다.", WAV_SECOND))
 
     page.route("**/api/ask-stream", handler)
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     ask(page, "첫 질문")
     page.wait_for_selector('#result[data-state="answered"]', timeout=15000)
     page.wait_for_function("document.getElementById('audio').paused === false", timeout=10000)
@@ -123,7 +123,7 @@ def test_late_audio_of_old_request_ignored(autoplay_page: Page, base_url: str) -
             fulfill_sse(route, answer_events("2", "두번째 답변입니다.", WAV_SECOND))
 
     page.route("**/api/ask-stream", handler)
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     ask(page, "첫 질문")
     page.wait_for_selector('#result[data-state="loading"]', timeout=5000)
     deadline = time.monotonic() + 10
@@ -150,7 +150,7 @@ def test_stream_error_event_shows_error(page: Page, base_url: str, shot_dir: Pat
         "**/api/ask-stream",
         lambda r: fulfill_sse(r, sse(("error", {"detail": "boom"}))),
     )
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     ask(page, "아무 질문")
     page.wait_for_selector('#result[data-state="error"]', timeout=15000)
     assert ERR_STREAM in page.locator("#error").inner_text()
@@ -162,7 +162,7 @@ def test_stream_without_done_shows_error(page: Page, base_url: str) -> None:
         "**/api/ask-stream",
         lambda r: fulfill_sse(r, answer_events("1", "끊긴 답변입니다.", WAV_SECOND, with_done=False)),
     )
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     ask(page, "아무 질문")
     page.wait_for_selector('#result[data-state="error"]', timeout=15000)
     assert ERR_STREAM in page.locator("#error").inner_text()
@@ -170,7 +170,7 @@ def test_stream_without_done_shows_error(page: Page, base_url: str) -> None:
 
 def test_network_abort_shows_error(page: Page, base_url: str) -> None:
     page.route("**/api/ask-stream", lambda r: r.abort())
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     ask(page, "아무 질문")
     page.wait_for_selector('#result[data-state="error"]', timeout=15000)
     assert "서버에 연결하지 못했습니다." in page.locator("#error").inner_text()
@@ -178,7 +178,7 @@ def test_network_abort_shows_error(page: Page, base_url: str) -> None:
 
 def test_http_500_shows_status(page: Page, base_url: str) -> None:
     page.route("**/api/ask-stream", lambda r: r.fulfill(status=500, body="oops"))
-    page.goto(base_url)
+    page.goto(f"{base_url}/static/index.html")
     ask(page, "아무 질문")
     page.wait_for_selector('#result[data-state="error"]', timeout=15000)
     assert "(500)" in page.locator("#error").inner_text()

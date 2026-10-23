@@ -36,8 +36,12 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
-        return FileResponse(STATIC_DIR / "index.html", media_type="text/html")
+    def home() -> FileResponse:
+        return FileResponse(STATIC_DIR / "home.html", media_type="text/html")
+
+    @app.get("/talk", include_in_schema=False)
+    def talk() -> FileResponse:
+        return FileResponse(STATIC_DIR / "talk.html", media_type="text/html")
 
     return app
 

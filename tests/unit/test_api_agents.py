@@ -158,7 +158,7 @@ def test_create_text_agent(client: TestClient) -> None:
     assert body["settings"]["answer_length"] == "one_sentence"
     assert body["settings"]["tone"] == "friendly"
     assert body["chunk_count"] == 2
-    assert body["share_path"] == f"/static/builder.html?agent={body['agent_id']}"
+    assert body["share_path"] == f"/talk?agent={body['agent_id']}"
     assert body["warnings"] == []
     assert re.match(ISO_Z, body["created_at"]) and re.match(ISO_Z, body["expires_at"])
 
