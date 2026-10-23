@@ -86,7 +86,7 @@ def _stage_p50(s: dict, key: str) -> str:
     return f"{_ms(st['p50'] if st else None)} ms"
 
 
-def render_table(before: dict, after: dict) -> str:
+def render_table(before: dict, after: dict, extra: bool = False) -> str:
     rows = [
         "| 지표 | before (/api/ask) | after (/api/ask-stream) | 비고 |",
         "|---|---|---|---|",
@@ -101,8 +101,8 @@ def render_table(before: dict, after: dict) -> str:
     ]
     for k in STAGE_ORDER:
         rows.append(f"| {stage_label(k)} (p50) | {_stage_p50(before, k)} | {_stage_p50(after, k)} | {STAGE_NOTE[k]} |")
-    extra = ordered_stage_keys(set(before["stages"]) | set(after["stages"]))
-    for k in extra:
+    extra_keys = ordered_stage_keys(set(before["stages"]) | set(after["stages"]))
+    for k in extra_keys:
         if k not in STAGE_ORDER:
             rows.append(f"| {stage_label(k)} (p50) | {_stage_p50(before, k)} | {_stage_p50(after, k)} | |")
 
@@ -114,7 +114,11 @@ def render_table(before: dict, after: dict) -> str:
 
     rows += [
         f"| TTS RTF (동시 1) | {rtf(before)} | {rtf(after)} | tts_ms / 음성 길이 |",
-        "| 동시 4 요청 | 미측정 | 미측정 | 이번 범위 밖 |",
+        (
+            "| 동시 4 요청 | 미측정 | 아래 추가 표 (summary-extra.md) | 구성은 표 아래 설명 |"
+            if extra
+            else "| 동시 4 요청 | 미측정 | 미측정 | 이번 범위 밖 |"
+        ),
         f"| 검색 적중 (top1 = 질문 id) | {hit(before)} | {hit(after)} | |",
         (
             f"| 요청 수 (오류) | {before['n']} ({before['errors']}) | {after['n']} ({after['errors']}) "
@@ -127,6 +131,54 @@ def render_table(before: dict, after: dict) -> str:
         f" / after {_ms(after['client_first_audio']['p50'])} ms"
     )
     return "\n".join(rows) + "\n"
+
+
+def render_extra_table(c1: dict, c4: dict, audio: dict) -> str:
+    cols = (c1, c4, audio)
+
+    def row(label: str, cells: list[str], note: str) -> str:
+        tail = f" {note} |" if note else " |"
+        return f"| {label} | {' | '.join(cells)} |{tail}"
+
+    rows = [
+        "| 지표 | 글자 동시 1 | 글자 동시 4 | 음성 입력 동시 1 | 비고 |",
+        "|---|---|---|---|---|",
+        row("첫 음성까지 (p50 / p95)", [_pair(s["first_audio"]) for s in cols], "서버 측 first_audio_ms"),
+        row("전체 응답 (p50 / p95)", [_pair(s["total"]) for s in cols], "total_ms"),
+        row(
+            "클라이언트 첫 음성 (p50 / p95)",
+            [_pair(s["client_first_audio"]) for s in cols],
+            "요청 전송 ~ 첫 audio 이벤트, 동시 4 는 경합 포함",
+        ),
+        row("STT (p50)", [_stage_p50(s, "stt_ms") for s in cols], "음성 입력만 실제 STT"),
+        row("LLM (p50)", [_stage_p50(s, "llm_ms") for s in cols], ""),
+        row("TTS (p50)", [_stage_p50(s, "tts_ms") for s in cols], "문장별 합"),
+        row("검색 적중 (top1 = 질문 id)", [f"{s['hit']}/{s['n']}" for s in cols], "음성은 STT 오인식 포함"),
+        row("요청 수 (오류)", [f"{s['n']} ({s['errors']})" for s in cols], _runs_note(c1)),
+    ]
+    return "\n".join(rows) + "\n"
+
+
+EXTRA_EXPECT = {
+    "c1": ("/api/ask-stream", 1),
+    "c4": ("/api/ask-stream", 4),
+    "audio": ("/api/ask-audio-stream", 1),
+}
+
+
+def _check_extra_header(opt: str, path: Path) -> str | None:
+    """헤더가 기대와 다르면 오류 메시지, 맞으면 None."""
+    if not path.exists():
+        return f"--{opt}: input not found: {path}"
+    header, _ = load(path)
+    endpoint, conc = EXTRA_EXPECT[opt]
+    got = (header.get("endpoint"), header.get("concurrency", 1))
+    if got != (endpoint, conc):
+        return (
+            f"--{opt}: expected endpoint={endpoint} concurrency={conc}, "
+            f"got endpoint={got[0]} concurrency={got[1]} ({path})"
+        )
+    return None
 
 
 def _runs_note(s: dict) -> str:
@@ -204,17 +256,41 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--before", type=Path, default=Path("bench/results/before.jsonl"))
     ap.add_argument("--after", type=Path, default=Path("bench/results/after.jsonl"))
     ap.add_argument("--out", type=Path, default=Path("bench/results/summary.md"))
+    ap.add_argument("--c1", type=Path, default=None)
+    ap.add_argument("--c4", type=Path, default=None)
+    ap.add_argument("--audio", type=Path, default=None)
+    ap.add_argument("--extra-out", type=Path, default=Path("bench/results/summary-extra.md"))
     a = ap.parse_args(argv)
+    extras = {"c1": a.c1, "c4": a.c4, "audio": a.audio}
+    given = [k for k, v in extras.items() if v is not None]
+    if given and len(given) != len(extras):
+        print("need --c1 --c4 --audio together", file=sys.stderr)
+        return 1
     for p in (a.before, a.after):
         if not p.exists():
             print(f"input not found: {p}", file=sys.stderr)
             return 1
+    use_extra = bool(given)
+    if use_extra:
+        for opt, path in extras.items():
+            err = _check_extra_header(opt, path)
+            if err:
+                print(err, file=sys.stderr)
+                return 1
     before, after = load_summary(a.before), load_summary(a.after)
-    table = render_table(before, after)
+    table = render_table(before, after, extra=use_extra)
+    extra_table = ""
+    if use_extra:
+        extra_table = render_extra_table(load_summary(a.c1), load_summary(a.c4), load_summary(a.audio))
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(table, encoding="utf-8")
+    if use_extra:
+        a.extra_out.parent.mkdir(parents=True, exist_ok=True)
+        a.extra_out.write_text(extra_table, encoding="utf-8")
     print(table)
     print(render_ascii(before, after))
+    if use_extra:
+        print(extra_table)
     return 0
 
 

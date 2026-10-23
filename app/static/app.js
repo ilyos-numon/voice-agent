@@ -22,7 +22,15 @@
   var playback = null;
   var audioEl = $("audio");
 
+  function stopPlayback() {
+    audioEl.pause();
+    audioEl.removeAttribute("src");
+    audioEl.load();
+    if (playback) { playback.playing = false; }
+  }
+
   function newPlayback() {
+    stopPlayback();
     reqSeq += 1;
     playback = { id: reqSeq, items: [], pos: 0, playing: false, tFetch: performance.now() };
     return playback;
@@ -165,6 +173,7 @@
     errorEl.textContent = "";
     micBtn.disabled = true;
     askBtn.disabled = true;
+    stopPlayback();
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
