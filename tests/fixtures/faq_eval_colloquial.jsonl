@@ -1,0 +1,46 @@
+{"qid": "c01", "query": "집 다 지었는데 이제 들어가 살려면 뭐 받아야 돼요?", "expected_id": "faq-026", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c02", "query": "주차 딱지 끊긴 거 같은데 며칠 지나야 조회돼요", "expected_id": "faq-029", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c03", "query": "한 달씩 끊어서 차 대는 주차장 어디어디 있어요", "expected_id": "faq-037", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c04", "query": "버스에 지갑 두고 내렸는데 어디다 물어봐요", "expected_id": "faq-047", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c05", "query": "교통비 지원해주는 거 앱 어디서 받아요", "expected_id": "faq-051", "kind": "colloquial", "traits": ["ellipsis", "spoken"]}
+{"qid": "c06", "query": "교통비 카드 잃어버렸는데 새로 받을수 잇나요", "expected_id": "faq-062", "kind": "colloquial", "traits": ["typo", "spoken"]}
+{"qid": "c07", "query": "등본 기계로 뽑는 데가 어디 있어요", "expected_id": "faq-085", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c08", "query": "대야동 사는데 거주자우선주차 신청부터 배정까지 순서가 어떻게 돼요", "expected_id": "faq-156", "kind": "colloquial", "traits": ["indirect"]}
+{"qid": "c09", "query": "택시 하는데 동네 주차구역 신청 안 되나요?", "expected_id": "faq-160", "kind": "colloquial", "traits": ["spoken", "ellipsis"]}
+{"qid": "c10", "query": "신천동 주차구역 요금은 어떻게 내요 몇 달마다?", "expected_id": "faq-165", "kind": "colloquial", "traits": ["ellipsis", "spoken"]}
+{"qid": "c11", "query": "청년 지원금 지난번 거 신청 깜빡했는데 지금 해도 돼요", "expected_id": "faq-221", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c12", "query": "스물네 살인데 분기마다 25만원 주는 거 저도 받을 수 있어요?", "expected_id": "faq-224", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c13", "query": "코로나 관련된 거 물어볼라고요", "expected_id": "faq-238", "kind": "colloquial", "traits": ["spoken", "ellipsis"]}
+{"qid": "c14", "query": "코로나 걸렸는데 병원 직접 가서 진료 바다도 돼요", "expected_id": "faq-265", "kind": "colloquial", "traits": ["typo", "spoken"]}
+{"qid": "c15", "query": "어른은 코로나 주사 몇 차까지 맞아야 돼요", "expected_id": "faq-276", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c16", "query": "확진됐는데 열 나면 약은 어디서 타요", "expected_id": "faq-278", "kind": "colloquial", "traits": ["indirect", "ellipsis"]}
+{"qid": "c17", "query": "주차 정기권 끊은 거 취소하면 돈 돌려받아요?", "expected_id": "faq-284", "kind": "colloquial", "traits": ["ellipsis", "spoken"]}
+{"qid": "c18", "query": "화물차 세워둘 때 공영주차장 쓰면 일 년에 얼마예요", "expected_id": "faq-285", "kind": "colloquial", "traits": ["indirect"]}
+{"qid": "c19", "query": "휠체어 탄 사람 태워주는 차 누가 이용할 수 있어요", "expected_id": "faq-289", "kind": "colloquial", "traits": ["indirect"]}
+{"qid": "c20", "query": "강좌 신청한 거 취소 어떻게 해요", "expected_id": "faq-298", "kind": "colloquial", "traits": ["ellipsis", "spoken"]}
+{"qid": "c21", "query": "애가 초등 5학년인데 교과 공부랑 진로 체험도 해주는 청소년 방과후 프로그램 있나요", "expected_id": "faq-311", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c22", "query": "은행동 청소년 문화으집 월요일에도 열어요?", "expected_id": "faq-318", "kind": "colloquial", "traits": ["typo", "ellipsis"]}
+{"qid": "c23", "query": "경기도 돌봄교실 그거 아직 하나요", "expected_id": "faq-323", "kind": "colloquial", "traits": ["spoken", "ellipsis"]}
+{"qid": "c24", "query": "애 봐주시는 선생님 부르면 시간당 얼마예요", "expected_id": "faq-339", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c25", "query": "건강식품 가게 차리려면 신고 어디서 해요", "expected_id": "faq-356", "kind": "colloquial", "traits": ["indirect"]}
+{"qid": "c26", "query": "공장 쓰레기 실어 나르는 사업 하려면 허가 어떻게 받아요", "expected_id": "faq-374", "kind": "colloquial", "traits": ["indirect"]}
+{"qid": "c27", "query": "장애인 복지관 어디 있어요 정왕동 쪽", "expected_id": "faq-381", "kind": "colloquial", "traits": ["ellipsis", "spoken"]}
+{"qid": "c28", "query": "전동휠체어 배터리 충전할 데 있나요", "expected_id": "faq-383", "kind": "colloquial", "traits": ["indirect"]}
+{"qid": "c29", "query": "애 낳고 집에 도우미 와주는 거 언제 신청해요", "expected_id": "faq-395", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c30", "query": "시흥에 조리원 어디어디 있어요", "expected_id": "faq-402", "kind": "colloquial", "traits": ["ellipsis", "spoken"]}
+{"qid": "c31", "query": "임신 중인데 우울해서 그림 치료 같은 거 없나여", "expected_id": "faq-405", "kind": "colloquial", "traits": ["typo", "spoken"]}
+{"qid": "c32", "query": "임대사업자 등록한 집 등기에 뭐 따로 올려야 된다던데", "expected_id": "faq-428", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c33", "query": "임대사업자인데 세입자 보증금 보험 꼭 들어야 돼요", "expected_id": "faq-432", "kind": "colloquial", "traits": ["ellipsis"]}
+{"qid": "c34", "query": "도서관에 없는 책 동네 책방에서 바로 빌릴 수 있다던데", "expected_id": "faq-436", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "c35", "query": "다리가 불편해서 도서관 못 가는데 책 집으로 보내주나요", "expected_id": "faq-437", "kind": "colloquial", "traits": ["indirect"]}
+{"qid": "c36", "query": "굴삭기 새로 샀는데 등록 서류 머 필요해요", "expected_id": "faq-487", "kind": "colloquial", "traits": ["typo", "indirect"]}
+{"qid": "c37", "query": "우리 강아지 광견병 주사 언제 맞춰야되요", "expected_id": "faq-550", "kind": "colloquial", "traits": ["typo", "spoken"]}
+{"qid": "c38", "query": "농사 짓는데 시에서 매달 돈 주는 거 있다면서요", "expected_id": "faq-566", "kind": "colloquial", "traits": ["indirect", "spoken"]}
+{"qid": "n01", "query": "부산 가는 기차표 여기서 살 수 있어요?", "expected_id": null, "kind": "none", "traits": ["spoken"]}
+{"qid": "n02", "query": "지금 밖에 비 오나요", "expected_id": null, "kind": "none", "traits": ["spoken", "ellipsis"]}
+{"qid": "n03", "query": "국민연금 언제부터 받을 수 있는지 알고 싶은데요", "expected_id": null, "kind": "none", "traits": ["spoken", "indirect"]}
+{"qid": "n04", "query": "운전면허 적성검사 갱신은 어디 가서 해요", "expected_id": null, "kind": "none", "traits": ["spoken"]}
+{"qid": "n05", "query": "로또 당첨금 어디서 받아요", "expected_id": null, "kind": "none", "traits": ["spoken"]}
+{"qid": "n06", "query": "제주도 렌터카 예약 좀 해주세요", "expected_id": null, "kind": "none", "traits": ["spoken"]}
+{"qid": "n07", "query": "주식 지금 사도 돼요?", "expected_id": null, "kind": "none", "traits": ["spoken", "ellipsis"]}
+{"qid": "n08", "query": "핸드폰 액정 깨졌는데 수리점 어디예요", "expected_id": null, "kind": "none", "traits": ["spoken"]}
