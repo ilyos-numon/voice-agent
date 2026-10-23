@@ -29,3 +29,4 @@ data/raw/
 .DS_Store
 *.log
 bench/audio/
+.claude/worktrees/

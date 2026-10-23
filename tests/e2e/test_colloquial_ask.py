@@ -88,7 +88,7 @@ def test_demo_page_shows_colloquial_source(
     correct = [c for c in colloquial if c["offline"] == c["row"]["expected_id"]]
     target = correct[0] if correct else colloquial[0]
     expected = target["row"]["expected_id"] if correct else target["offline"]
-    page.goto(f"{base_url}/static/index.html")
+    page.goto(f"{base_url}/static/archive/kiosk/index.html")
     page.fill("#question", target["row"]["query"])
     page.click("#ask")
     page.wait_for_selector('#result[data-state="answered"]', timeout=20000)

@@ -58,7 +58,7 @@ def test_stt_upload_silence_422(base_url: str) -> None:
 
 
 def test_stt_demo_page_mic_to_answer(page: Page, base_url: str, shot_dir: Path) -> None:
-    page.goto(f"{base_url}/static/index.html")
+    page.goto(f"{base_url}/static/archive/kiosk/index.html")
     page.click("#mic")
     page.wait_for_selector('#result[data-state="recording"]', timeout=5000)
     page.screenshot(path=str(shot_dir / "demo-stt-recording.png"), full_page=True)

@@ -2,8 +2,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.agents.jobs import ScorecardJobs
@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.pipeline.runner import build_pipeline
 
 STATIC_DIR = Path(__file__).parent / "static"
+STUDIO_DIR = STATIC_DIR / "studio"
 
 
 @asynccontextmanager
@@ -36,12 +37,21 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/", include_in_schema=False)
-    def home() -> FileResponse:
-        return FileResponse(STATIC_DIR / "home.html", media_type="text/html")
+    def home() -> RedirectResponse:
+        return RedirectResponse("/studio", status_code=307)
 
     @app.get("/talk", include_in_schema=False)
-    def talk() -> FileResponse:
-        return FileResponse(STATIC_DIR / "talk.html", media_type="text/html")
+    def talk(request: Request) -> RedirectResponse:
+        query = request.url.query
+        return RedirectResponse("/studio/app" + ("?" + query if query else ""), status_code=307)
+
+    @app.get("/studio", include_in_schema=False)
+    def studio() -> FileResponse:
+        return FileResponse(STUDIO_DIR / "studio.html", media_type="text/html")
+
+    @app.get("/studio/app", include_in_schema=False)
+    def studio_app() -> FileResponse:
+        return FileResponse(STUDIO_DIR / "workspace.html", media_type="text/html")
 
     return app
 

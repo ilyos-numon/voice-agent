@@ -42,7 +42,7 @@ def test_tts_blank_text_422_fast(base_url: str) -> None:
 
 
 def test_tts_demo_page_audio_has_duration(page: Page, base_url: str, shot_dir: Path) -> None:
-    page.goto(f"{base_url}/static/index.html")
+    page.goto(f"{base_url}/static/archive/kiosk/index.html")
     page.fill("#question", QUESTION)
     page.click("#ask")
     page.wait_for_selector('#result[data-state="answered"]', timeout=15000)

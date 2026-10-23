@@ -12,7 +12,7 @@ Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retriev
 
 한 서버 프로세스가 프리셋 4종과 사용자 상담원(최대 200개)을 메모리에 두고, 음성 인식·합성 모델은 하나씩만 올려 함께 쓴다. 상담원마다 자기 문서·말투·목소리·답 길이·모를 때 동작·피할 주제를 가진다. 매 턴 SSE 로 문장마다 음성(WAV)과 근거(어느 조각의 어느 문장인지, 겹침 비율)가 오고, 끝에 단계별 시간(듣기·검색·생각·말하기, 첫 음성까지)과 검색 후보(최대 3개, 제목·점수)가 온다. 근거를 못 찾은 문장은 `supported: false` 로 표시한다. 성적표는 상담원 문서에서 질문을 규칙으로 만들어 글자·음성으로 묻고 적중 수·틀린 질문·힌트를 돌려주는 비동기 작업이고, A/B 비교는 같은 질문을 설정 두 개로 답해 나란히 돌려준다.
 
-- API 계약: [docs/api.md](docs/api.md) (엔드포인트·SSE 이벤트·오류 code·상한·시나리오별 호출 순서). 결정 기록은 `docs/decisions.md` ADR-009 (화면은 ADR-010).
+- API 계약: [docs/api.md](docs/api.md) (엔드포인트·SSE 이벤트·오류 code·상한·시나리오별 호출 순서). 결정 기록은 `docs/decisions.md` ADR-009 (화면은 ADR-011).
 
 ### 직접 써보기
 
@@ -21,8 +21,8 @@ Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retriev
    uv sync --extra dev && uv run uvicorn app.main:app --host localhost --port 8765    # 스텁: 무음, 모델 다운로드 없음
    uv sync --extra dev --extra tts --extra stt && STT_BACKEND=whisper TTS_BACKEND=supertonic RETRIEVER_BACKEND=bm25 FAQ_PATH=data/faq/faq.jsonl uv run --no-sync uvicorn app.main:app --host localhost --port 8765    # 실제 음성(듣기·말하기)
    ```
-2. `http://localhost:8765/` 를 연다. "바로 체험하기" 카드 4장 중 하나를 누르거나, 아래 "내 상담원 만들기" 폼에 글을 붙여 넣거나 `질문,답변` 두 열 CSV 를 올리고 "상담원 만들기"를 누른다.
-3. 대화 화면(`/talk?agent=<id>`)에서 🎤 를 누르고 말한 뒤 다시 누르거나(실제 음성 서버), 글자로 묻거나 예시 질문을 누른다. 답 아래 영수증(단계별 시간 막대·근거 각주·찾아본 자료)이 펼쳐져 있고, 아래 "성적표"·"설정 비교(A/B)" 탭에서 시험해보기와 비교를 한다. "공유 링크 복사"로 받은 링크를 연 사람은 같은 상담원 대화 화면으로 바로 들어온다.
+2. `http://localhost:8765/studio` 를 연다(`/` 도 여기로 넘어간다). 프리셋 카드 4장 중 하나에서 "에이전트 시작하기"를 누르거나, "내 상담원 만들기"에서 글을 붙여 넣거나 `질문,답변` 두 열 CSV 를 올리고 "상담원 만들기"를 누른다. 만든 상담원은 이 브라우저의 "내 상담원" 칩에 남는다.
+3. 워크스페이스(`/studio/app?agent=<id>`)의 "대화" 탭에서 🎤 를 누르고 말한 뒤 다시 누르거나(실제 음성 서버), 글자로 묻거나 예시 질문을 누른다. 답 아래 "이 답의 영수증"을 펼치면 단계별 시간 막대·근거 각주·찾아본 자료가 보인다. "자료" 탭은 상담원이 아는 자료 조각, "설정" 탭은 설정 바꾸기(내 상담원만), "성적표"·"A/B 비교" 탭은 시험해보기와 비교다. "공유" 로 복사한 링크를 연 사람은 같은 상담원 워크스페이스로 바로 들어온다. 예전 공유 링크(`/talk?…`)는 같은 쿼리로 `/studio/app` 에 넘어간다.
 
 ![만들기](docs/images/two-page-home.png)
 
@@ -30,7 +30,7 @@ Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retriev
 
 ![휴대폰 폭](docs/images/two-page-mobile-talk.png)
 
-1차 키오스크 데모 화면은 `http://localhost:8765/static/index.html` 에 그대로 있다.
+1차 키오스크 데모 화면은 `http://localhost:8765/static/archive/kiosk/index.html` 에 보관돼 있다. 옛 두 페이지 화면과 함께 `app/static/archive/README.md` 에 정리했다.
 
 ### 실행
 
@@ -192,7 +192,7 @@ uv sync --extra dev --extra tts --extra stt
 STT_BACKEND=whisper TTS_BACKEND=supertonic uv run --extra tts --extra stt uvicorn app.main:app --host localhost --port 8765
 ```
 
-Open http://localhost:8765/static/index.html (the phase-1 kiosk demo; `/` is now the agent maker page, see "직접 써보기"). Press 🎤, speak, press 🎤 again to send (recording stops on its own after 15 s; the browser asks for microphone permission once). Typing a question and pressing the button still works. The answer audio tries to autoplay; if the browser blocks it, use the play button. Asking a new question while an answer is playing stops the previous audio, and late audio from the earlier request is ignored.
+Open http://localhost:8765/static/archive/kiosk/index.html (the phase-1 kiosk demo; `/` now redirects to the agent studio `/studio`, see "직접 써보기"). Press 🎤, speak, press 🎤 again to send (recording stops on its own after 15 s; the browser asks for microphone permission once). Typing a question and pressing the button still works. The answer audio tries to autoplay; if the browser blocks it, use the play button. Asking a new question while an answer is playing stops the previous audio, and late audio from the earlier request is ignored.
 
 - STT: `Systran/faster-whisper-small`, CPU int8. First run downloads about 484 MB (model.bin) into `~/.cache/huggingface/hub/` (stored in the shared `blobs/` folder). License: code MIT, weights MIT.
 - TTS: `TTS_VOICE` selects the speaker, `F1`~`F5` or `M1`~`M5` (default `F1`). First run downloads about 385~415 MB of ONNX weights into `~/.cache/supertonic3/` (override with `SUPERTONIC_CACHE_DIR`).
@@ -240,7 +240,7 @@ E2E tests run against a server on `localhost:8765`:
 # server started with the full bm25 command above (whisper + supertonic + bm25): full suite
 uv run pytest tests/e2e -q
 # server in default stub mode (no model): skip the real-model checks
-uv run pytest tests/e2e -q --ignore=tests/e2e/test_tts_real.py --ignore=tests/e2e/test_stt_real.py --ignore=tests/e2e/test_faq_bm25.py --ignore=tests/e2e/test_stream_real.py --ignore=tests/e2e/test_bench_audio_real.py --ignore=tests/e2e/test_colloquial_ask.py --ignore=tests/e2e/test_agent_builder_real.py --ignore=tests/e2e/test_two_page_voice_real.py
+uv run pytest tests/e2e -q --ignore=tests/e2e/test_tts_real.py --ignore=tests/e2e/test_stt_real.py --ignore=tests/e2e/test_faq_bm25.py --ignore=tests/e2e/test_stream_real.py --ignore=tests/e2e/test_bench_audio_real.py --ignore=tests/e2e/test_colloquial_ask.py --ignore=tests/e2e/test_agent_builder_real.py --ignore=tests/e2e/test_studio_voice_real.py
 ```
 
 The test question audio `tests/fixtures/ask_faq001_ko.wav` is synthesized speech (not a human recording). Regenerate it with:

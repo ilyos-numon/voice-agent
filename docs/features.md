@@ -4,7 +4,7 @@
 
 - **독자**: 백엔드는 그대로 두고, 화면을 처음부터 자기 구조로 다시 만드는 개발자.
 - **무엇을 담나**: 서버가 할 수 있는 일(기능), 서버 안에서 일어나는 순서와 상태, 주고받는 데이터(계약), 제약과 한계. 화면 배치·컴포넌트 구조는 정하지 않는다.
-- **참고 구현**: `app/static/` 의 바닐라 화면(`home.*`, `talk.*`, `talk-tabs.js`, `common.js`)은 계약을 쓰는 한 가지 방법일 뿐이다. 각 기능 끝의 "참고 구현" 줄은 따라 하라는 뜻이 아니라 "이미 이렇게 풀어 본 적이 있다"는 뜻이다.
+- **참고 구현**: `app/static/studio/` 의 바닐라 화면(`studio.*`, `workspace.html`, `ws-*.js`, `api.js`)은 계약을 쓰는 한 가지 방법일 뿐이다. 각 기능 끝의 "참고 구현" 줄은 따라 하라는 뜻이 아니라 "이미 이렇게 풀어 본 적이 있다"는 뜻이다.
 - **근거 우선순위**: 코드 > `docs/api.md` > 기타 문서. 둘이 다르면 코드대로 적고 9절 "문서 불일치"에 남겼다. 코드로 확인하지 못한 것은 "미확인"이라고 적었다.
 - **예시 값**: 스텁 서버(`STT_BACKEND=stub TTS_BACKEND=stub LLM_BACKEND=stub`, 포트 8766)에서 실제로 받은 응답이다. `audio_wav_b64` 같은 긴 값만 `...`로 줄였다. 스텁이라 시간 값은 거의 0이다.
 - **기준 커밋**: `65d9ac4` (브랜치 HEAD, 이 문서를 쓴 시점)
@@ -60,7 +60,7 @@
 | I 공유·수명 | I1 공유 링크, I2 만료·재시작, I3 상담원 지우기 | `GET /api/agents/{agent_id}`, `DELETE /api/agents/{agent_id}` |
 | J 오류·제약 | J1 오류 형식, J2 오류 code 전체, J3 검증 실패(422) | 전 엔드포인트 |
 | K 설정 옵션·능력 조회 | K1 선택지·기본값·상한·능력, K2 설정 필드 의미 | `GET /api/options` |
-| L 1차 키오스크 API(레거시)·정적 | L1 상태 확인, L2 한 번에 묻기, L3 스트림으로 묻기, L4 정적 페이지·문서 | `GET /health`, `POST /api/ask`, `POST /api/ask-audio`, `POST /api/ask-stream`, `POST /api/ask-audio-stream`, `GET /`, `GET /talk`, `/static/*`, `/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `/redoc` |
+| L 1차 키오스크 API(레거시)·정적 | L1 상태 확인, L2 한 번에 묻기, L3 스트림으로 묻기, L4 정적 페이지·문서 | `GET /health`, `POST /api/ask`, `POST /api/ask-audio`, `POST /api/ask-stream`, `POST /api/ask-audio-stream`, `GET /`, `GET /talk`, `GET /studio`, `GET /studio/app`, `/static/*`, `/openapi.json`, `/docs`, `/docs/oauth2-redirect`, `/redoc` |
 
 기능 ID는 모두 35개다 (A2 + B5 + C2 + D4 + E4 + F1 + G4 + H1 + I3 + J3 + K2 + L4). 이 중 J1~J3·K2는 독립 화면이 아니라 모든 기능에 걸친 공통 규칙이다.
 
@@ -109,7 +109,7 @@
   - [ ] 카드 수를 4로 하드코딩하지 않는다 (폴더 수만큼 온다).
   - [ ] `agent_id`로 바로 세션을 연다 (C1). 프리셋 상담원 정보(이름·설정)가 필요하면 A2를 부른다 (`PresetOut`에는 `name`·`settings`가 없다).
   - [ ] `sample_questions`는 "누르면 바로 묻기" 버튼으로 쓰기 좋다.
-- **참고 구현**: `home.js:27-53` 카드 렌더·클릭 시 `/talk?agent=<agent_id>`로 이동. `talk.js:430-447` 프리셋이면 `/api/presets`를 다시 불러 `sample_questions`·`title`을 찾는다.
+- **참고 구현**: `studio.js` `buildCard`·`presetInfo` 카드 렌더, "에이전트 시작하기"로 `/studio/app?agent=<agent_id>` 이동. `ws-core.js` `loadInner` 프리셋이면 `/api/presets`를 다시 불러 `sample_questions`·`title`을 찾는다.
 
 #### A2 상담원 조회
 
@@ -126,7 +126,7 @@
   - [ ] 404면 "없거나 만료된 상담원" 전체 화면 + 새로 만들기 길.
   - [ ] `preset_id != null`이면 설정 바꾸기·지우기 UI를 숨긴다 (403이 난다).
   - [ ] `created_at`은 프리셋이면 서버 시작 시각이다.
-- **참고 구현**: `talk.js:450-477` `options`와 병렬로 부르고 실패하면 `showFatal`.
+- **참고 구현**: `ws-core.js` `loadInner` `options`와 병렬로 부르고 실패하면 `showErrorLayout` (네트워크·5xx는 오류 패널, 그 밖은 복구 카드).
 
 ### B. 상담원 만들기·지식·설정
 
@@ -185,7 +185,7 @@
   - [ ] `warnings`는 201 응답에서만 받을 수 있다. 다른 화면으로 넘어간다면 직접 들고 가야 한다.
   - [ ] 400/413은 `detail.message`를 그대로 보여 줘도 된다 (`knowledge_bad_csv` 메시지에는 파이썬 csv 모듈의 영어 오류 문장이 붙는다: `"CSV를 읽을 수 없습니다: unexpected end of data"`).
   - [ ] 만들기 버튼 중복 클릭 방지 (멱등이 아니다. 두 번 누르면 상담원 두 개).
-- **참고 구현**: `home.js:144-203` 폼 → 본문 조립(피할 주제는 쉼표로 나눔) → 201이면 `sessionStorage`의 `va:warnings:<id>`에 경고를 넣고 `/talk`로 이동.
+- **참고 구현**: `studio.js` `buildBody`·`onSubmit` 폼 → 본문 조립(피할 주제는 쉼표로 나눔) → 201이면 `sessionStorage`의 `va:warnings:<id>`에 경고를 넣고 `/studio/app?agent=<id>`로 이동 (`ws-core.js` `renderWarnings`가 읽음).
 
 #### B2 텍스트 지식 조각내기 규칙
 
@@ -243,7 +243,7 @@
 - **프론트엔드 체크리스트**
   - [ ] id로 한 조각만 가져오는 엔드포인트는 **없다**. 근거 원문 팝업을 만들려면 목록을 받아 두고 클라이언트에서 찾는다(civil-kiosk는 575개라 최대 3페이지).
   - [ ] 근거 `quote`·후보 `title`만으로 충분하면 이 호출은 필요 없다.
-- **참고 구현**: `talk.js:441-446` 사용자 상담원의 예시 질문 칩으로 `limit=3`의 `title`을 쓴다. 목록 화면은 참고 구현에 없다(ADR-010 결과).
+- **참고 구현**: `ws-chat.js` `loadCustomChips` 사용자 상담원의 예시 질문 칩으로 `limit=3`의 `title`을 쓴다. `ws-knowledge.js` `loadNext` "자료" 탭 목록(`offset`·`limit` 더 보기).
 
 #### B5 설정 바꾸기
 
@@ -256,7 +256,7 @@
 - **프론트엔드 체크리스트**
   - [ ] 바꾼 필드만 보낸다. `null`은 "기본값으로"가 아니라 422다(`{"tone": null}` → 422 `tone: 허용되지 않는 값입니다`).
   - [ ] 동시 수정 충돌 검사(버전·ETag)가 없다. 나중 요청이 이긴다.
-- **참고 구현**: 없다 (ADR-010 "화면에서 상담원 설정 고치기·지우기 … 없다").
+- **참고 구현**: `ws-settings.js` `changedFields`·`onSave` 바뀐 필드만 PATCH, 프리셋은 보기만.
 
 ### C. 세션·사용량
 
@@ -283,7 +283,7 @@
 - **프론트엔드 체크리스트**
   - [ ] 세션 id를 어디에 둘지(메모리/저장소) 정한다. 서버는 클라이언트와 세션을 묶지 않으므로 새로고침마다 새 세션을 열면 질문 수가 다시 30이 된다 (상한은 남용 방지 장치가 아니다, 8절).
   - [ ] 404 `session_not_found`를 받으면 새 세션을 열고 다시 묻는 흐름을 둔다.
-- **참고 구현**: `talk.js:488-495` 페이지를 열 때마다 새 세션.
+- **참고 구현**: `ws-core.js` `newSession` 페이지를 열 때마다, "새 세션으로 초기화" 때마다 새 세션.
 
 #### C2 질문 수 차감·환불
 
@@ -321,7 +321,7 @@
   - [ ] 먼저 `response.ok`를 보고, 아니면 JSON 오류(J1)로 처리.
   - [ ] 새 질문을 보내면 이전 스트림을 `AbortController`로 끊고 재생 중인 음성을 멈춘다. 서버는 끊긴 턴의 질문을 환불하지 않는다.
   - [ ] `done`·`error` 없이 스트림이 끝나면 "불완전 응답"으로 처리.
-- **참고 구현**: `talk.js:223-300` (`beginRequest`가 이전 요청 abort, `runRequest`가 상태 분기), `common.js:99-138` SSE 파서.
+- **참고 구현**: `ws-chat.js` `beginTurn`·`askText`·`makeHandlers`, `api.js` `streamTurn`·`readSse` SSE 파서.
 
 #### D2 말로 묻기
 
@@ -337,7 +337,7 @@
   - [ ] `MediaRecorder` Blob을 그대로 보내면 된다 (Chrome은 WebM, Safari는 MP4 계열).
   - [ ] 마이크 권한 거부·`MediaRecorder` 미지원은 클라이언트 오류로 따로 처리.
   - [ ] `meta`가 오기 전까지 질문 칸에 "듣는 중…" 같은 자리표시를 두고, `meta.transcript`로 바꾼다.
-- **참고 구현**: `talk.js:312-366` (`MAX_RECORD_MS = 15000`, `talk.js:7`).
+- **참고 구현**: `ws-chat.js` `startRecording`·`stopRecording`·`sendRecording` (`MAX_RECORD_MS = 15000`).
 
 #### D3 답 만들기 순서 (서버 내부)
 
@@ -393,7 +393,7 @@
   - [ ] 지연 막대는 `done`이 와야 완성된다. `meta` 시점엔 세 값만 있다.
   - [ ] `done.speak_ms`는 **합계**, "말하기 시작"은 `sentence[0].speak_ms`.
   - [ ] 스텁 서버에서는 거의 모든 값이 0~1 ms라 막대가 의미 없다(참고 구현의 남은 과제).
-- **참고 구현**: `talk.js:109-143` (막대: 대기(>0일 때만)·듣기·검색·생각·말하기 시작, 범례에 "첫 음성까지"), `common.js:221-225` 1000 ms 이상은 `1.4s`.
+- **참고 구현**: `ws-chat.js` `renderTimings` (듣기(음성이거나 1 ms 이상일 때)·검색·생각, 끝나면 말하기·첫 음성까지·전체·대기(>0일 때만)), `api.js` `formatMs` 1000 ms 이상은 `1.4s`.
 
 #### E2 문장별 근거
 
@@ -437,7 +437,7 @@
   - [ ] 브라우저 자동재생 정책: 사용자 동작 없이 `play()`가 거부될 수 있다. 첫 재생은 클릭 이벤트 안에서 시작되게 하거나, 실패 시 재생 버튼을 보인다.
   - [ ] 새 질문·A/B 재생 시 이전 재생을 멈추고 큐를 비운다.
   - [ ] 문장 사이 간격은 서버 TTS 속도에 달렸다. 앞 문장 재생이 끝났는데 다음 문장이 아직 안 왔으면 기다린다.
-- **참고 구현**: `common.js:140-219` `AudioQueue` (index 슬롯 배열, `ended`/`error`에서 다음, `play()` 거부 시 건너뜀 — 소리 없이 넘어간다), `talk.js:203`.
+- **참고 구현**: `api.js` `AudioQueue` (index 순서대로 재생), `ws-chat.js` `addSentence`·`stopAudio`.
 
 ### G. 성적표
 
@@ -511,7 +511,7 @@
   - [ ] 404 `job_not_found`(서버 재시작·상담원 삭제 뒤)면 다시 제출하는 길을 둔다.
   - [ ] `progress.total`은 제출 때 정해지고 실행 중에도 갱신될 수 있다. 0으로 나누지 않는다.
   - [ ] 진행 중 취소 API는 **없다**.
-- **참고 구현**: `talk-tabs.js:121-188` (`POLL_MS = 1000`, 409 이어받기 178-180, `job_not_found`면 1회 자동 재제출 128-133, `visibilitychange`로 폴링 정지 196-199), 렌더 85-119.
+- **참고 구현**: `ws-scorecard.js` `start`·`poll`·`retry` (`POLL_MS = 1500`, 409면 `job_id`로 이어받기, 다시 시도 시 `job_not_found`·실패 작업이면 새로 제출), 렌더 `renderReport`.
 
 #### G3 질문 생성 규칙
 
@@ -585,7 +585,7 @@
   - [ ] fetch 타임아웃을 두면 120초 이상으로.
   - [ ] 음성 재생은 각 칸 `sentences[]`를 `index` 순으로. 응답 하나에 base64 WAV가 최대 8개(4+4) 들어 있어 크다.
   - [ ] `summary: true`를 A/B에 쓰면 요약 쪽이 외부 LLM을 부른다(서버 LLM이 없으면 `summary_used: false`).
-- **참고 구현**: `talk-tabs.js:259-303` (답 길이만 고름, 기본 A `one_sentence` / B `detailed`), `renderSide` 231-257.
+- **참고 구현**: `ws-compare.js` `readSide`·`run` (말투·답 길이·목소리·요약, "(기본값 유지)"는 요청에서 뺌), `renderResult`·`renderColumn`.
 
 ### I. 공유·수명
 
@@ -593,8 +593,8 @@
 
 - `share_path` = `/talk?agent=<agent_id>` (프리셋도 같은 모양). 상대 경로라 프론트엔드 주소에 맞게 직접 조립해도 된다. 링크로 들어온 화면은 A2로 생존 확인 → C1 세션 → 대화.
 - 링크를 아는 사람은 누구나 같은 상담원과 대화하고, 사용자 상담원이면 **설정 바꾸기·지우기도 할 수 있다**(권한 검사 없음, `agents.py:234-258`).
-- **체크리스트**: [ ] 새 프론트엔드의 라우트가 `/talk?agent=`가 아니면 `agent_id`로 링크를 만든다. 서버의 `GET /talk`는 참고 구현 HTML을 돌려준다.
-- **참고 구현**: `talk.js:369-395` 클립보드 복사, 실패 시 읽기 전용 입력칸.
+- **체크리스트**: [ ] 새 프론트엔드의 라우트가 `/talk?agent=`가 아니면 `agent_id`로 링크를 만든다. 서버의 `GET /talk`는 쿼리를 그대로 붙여 `/studio/app` 으로 307 리다이렉트한다.
+- **참고 구현**: `ws-core.js` `onShare` (`api.js` `shareUrl`로 `/studio/app?agent=<id>` 조립) 클립보드 복사, 실패 시 입력칸을 선택해 둔다.
 
 #### I2 만료·재시작
 
@@ -691,7 +691,7 @@
 | `voice_input_available` | STT가 스텁이 아닐 때 `true` (`agents.py:185`). 성적표 음성 채널은 STT **와** TTS 둘 다 실제여야 한다(`runtime.py:134`)는 점이 다르다 |
 
 - **체크리스트**: [ ] 라벨 문구를 하드코딩하지 않는다. [ ] `summary_available: false`면 요약 스위치를 숨기거나 비활성. [ ] 이 응답 하나로 화면의 능력(마이크·요약·목소리)을 결정한다.
-- **참고 구현**: `home.js:56-98` select 채우기, 비활성 목소리 건너뛰기, TTL 문구.
+- **참고 구현**: `studio.js` `applyOptions`·`fillSelect` select 채우기, 비활성 목소리는 "(쓸 수 없음)"으로 비활성, TTL 문구.
 
 #### K2 설정 필드 의미 (Settings)
 
@@ -736,9 +736,11 @@
 
 | 경로 | 내용 |
 |---|---|
-| `GET /` | 참고 구현 만들기 화면 `home.html` |
-| `GET /talk` | 참고 구현 대화 화면 `talk.html` (쿼리 `agent`는 브라우저가 읽음) |
-| `/static/*` | `app/static/` 파일 (1차 키오스크 데모 `/static/index.html` 포함) |
+| `GET /` | 307 → `/studio` |
+| `GET /talk` | 307 → `/studio/app?<같은 쿼리>` (옛 공유 링크) |
+| `GET /studio` | 참고 구현 탐색·만들기 화면 `studio/studio.html` |
+| `GET /studio/app` | 참고 구현 워크스페이스 `studio/workspace.html` (쿼리 `agent`는 브라우저가 읽음) |
+| `/static/*` | `app/static/` 파일 (1차 키오스크 데모 `/static/archive/kiosk/index.html` 포함) |
 | `GET /openapi.json`, `/docs`, `/docs/oauth2-redirect`, `/redoc` | FastAPI 기본 스키마·문서 화면. SSE 이벤트 모양은 OpenAPI에 없다 |
 
 ---
@@ -835,7 +837,7 @@ data: {"turn_id":"t_cb40721d875b","sentence_count":2,"answer_kind":"grounded","s
 ### 3.6 브라우저에서 읽기 (요점)
 
 - `fetch(url, {method:"POST", body, signal})` → `response.ok` 확인 → `response.body.getReader()` + `TextDecoder({stream})` → 버퍼에서 `\n\n` 단위로 자르고, `event:`·`data:` 줄을 파싱.
-- `\r\n`이 섞일 가능성에 대비해 정규화(참고 구현 `common.js:122`). 서버는 `\n`만 쓴다.
+- `\r\n`이 섞일 가능성에 대비해 정규화(참고 구현 `api.js` `readSse`). 서버는 `\n`만 쓴다.
 - 음성 업로드 경로는 본문이 Blob이고 `session_id`가 쿼리다.
 
 ---
@@ -1181,7 +1183,7 @@ sequenceDiagram
 ### 8.2 결정해야 할 것
 
 1. **출처(origin)**: CORS가 없다. 같은 서버의 `/static` 아래에 빌드 결과를 두거나, 개발 서버 프록시로 `/api`를 넘긴다. 다른 출처가 꼭 필요하면 백엔드 변경이 필요하다.
-2. **라우팅과 공유 링크**: 서버의 `/`·`/talk`는 참고 구현 HTML을 돌려준다. 새 화면을 같은 경로에 두려면 서버 라우트(`app/main.py`)를 바꾸거나 다른 경로를 쓰고 `agent_id`로 링크를 만든다.
+2. **라우팅과 공유 링크**: 서버의 `/studio`·`/studio/app`은 참고 구현 HTML을 돌려주고 `/`·`/talk`는 그리로 307 리다이렉트한다. 새 화면을 같은 경로에 두려면 서버 라우트(`app/main.py`)를 바꾸거나 다른 경로를 쓰고 `agent_id`로 링크를 만든다.
 3. **세션 수명 관리**: 페이지마다 새 세션 / 탭 저장소에 보관 / 상담원별 하나. 404 `session_not_found` 자동 복구 여부.
 4. **동시 질문 정책**: 이전 턴을 끊고 새로 묻기(참고 구현) vs 진행 중엔 입력 잠금. 끊으면 질문이 하나 더 줄어든다.
 5. **경고 전달**: `warnings`는 201에서만 오니 만들기 → 대화 화면 전환 시 상태로 넘긴다.
@@ -1263,8 +1265,10 @@ sequenceDiagram
 | POST | `/api/ask-audio` | L2 | 아니오 | 레거시, 원시 바이트 |
 | POST | `/api/ask-stream` | L3 | 예 | 레거시 |
 | POST | `/api/ask-audio-stream` | L3 | 예 | 레거시, 원시 바이트 |
-| GET | `/` | L4 | 아니오 | 참고 구현 HTML |
-| GET | `/talk` | L4 | 아니오 | 참고 구현 HTML |
+| GET | `/` | L4 | 아니오 | 307 → `/studio` |
+| GET | `/talk` | L4 | 아니오 | 307 → `/studio/app` |
+| GET | `/studio` | L4 | 아니오 | 참고 구현 HTML |
+| GET | `/studio/app` | L4 | 아니오 | 참고 구현 HTML |
 | GET | `/openapi.json` | L4 | 아니오 | FastAPI 기본 |
 | GET | `/docs` | L4 | 아니오 | FastAPI 기본 |
 | GET | `/docs/oauth2-redirect` | L4 | 아니오 | FastAPI 기본 |
