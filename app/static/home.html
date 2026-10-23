@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>내 음성 상담원 만들기</title>
+  <link rel="stylesheet" href="/static/ui.css">
+</head>
+<body data-page="home">
+  <header class="site-header">
+    <h1>내 음성 상담원 만들기</h1>
+  </header>
+
+  <main class="page">
+    <p>가게 안내문이나 자주 묻는 질문을 넣으면, 말로 묻고 말로 답하는 상담원이 바로 생깁니다.</p>
+
+    <section class="panel" aria-labelledby="try-title">
+      <h2 id="try-title">바로 체험하기</h2>
+      <p class="hint">카드를 누르면 그 상담원과 바로 대화합니다.</p>
+      <div id="preset-list" class="preset-list" aria-live="polite">불러오는 중…</div>
+      <p id="preset-error" class="error" role="alert"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="create-title">
+      <h2 id="create-title">내 상담원 만들기</h2>
+      <p id="ttl-note" class="hint">만든 상담원은 24시간 뒤 지워집니다.</p>
+      <p id="privacy-note" class="hint">넣은 자료는 이 상담원 답에만 쓰고 24시간 뒤 지웁니다.</p>
+
+      <form id="create-form" novalidate>
+        <label for="kn-kind">자료 종류</label>
+        <select id="kn-kind">
+          <option value="text">글 붙여 넣기</option>
+          <option value="faq_csv">자주 묻는 질문 표(CSV)</option>
+        </select>
+
+        <div id="kn-text-field">
+          <label for="kn-text">상담원이 알아야 할 내용</label>
+          <textarea id="kn-text" rows="8" placeholder="예: 매장은 매일 오전 10시에 엽니다. 주차는 지하 1층입니다."></textarea>
+        </div>
+
+        <div id="kn-file-field" hidden>
+          <label for="kn-file">질문,답변 두 열로 된 CSV 파일</label>
+          <input id="kn-file" type="file" accept=".csv,text/csv">
+        </div>
+
+        <p id="kn-count" class="hint" aria-live="polite"></p>
+
+        <div class="form-grid">
+          <div>
+            <label for="agent-name">상담원 이름</label>
+            <input id="agent-name" type="text" maxlength="30" value="내 상담원">
+          </div>
+          <div>
+            <label for="persona-name">상담원이 부르는 자기 호칭</label>
+            <input id="persona-name" type="text">
+          </div>
+          <div>
+            <label for="tone">말투</label>
+            <select id="tone"></select>
+          </div>
+          <div>
+            <label for="voice">목소리</label>
+            <select id="voice"></select>
+          </div>
+          <div>
+            <label for="answer-length">답 길이</label>
+            <select id="answer-length"></select>
+          </div>
+          <div>
+            <label for="when-unknown">자료에 없는 질문을 받으면</label>
+            <select id="when-unknown"></select>
+          </div>
+          <div id="handoff-field" class="full" hidden>
+            <label for="handoff-message">대신 들려줄 안내</label>
+            <input id="handoff-message" type="text">
+          </div>
+          <div class="full">
+            <label for="avoid-topics">답하지 않을 주제 (쉼표로 구분)</label>
+            <input id="avoid-topics" type="text" placeholder="예: 가격 협상, 개인 연락처">
+          </div>
+        </div>
+
+        <p id="create-error" class="error" role="alert"></p>
+        <div class="row">
+          <button id="create-btn" type="submit">상담원 만들기</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="/static/common.js"></script>
+  <script src="/static/home.js"></script>
+</body>
+</html>
