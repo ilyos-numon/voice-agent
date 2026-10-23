@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>상담원 - 보이스 에이전트 스튜디오</title>
+<link rel="stylesheet" href="/static/studio/vendor/icons.css">
+<script src="/static/studio/vendor/tailwind-3.4.16.js"></script>
+<script src="/static/studio/tw-config.js"></script>
+<script src="/static/studio/api.js"></script>
+<style>
+  [hidden] { display: none !important; }
+  html, body { margin: 0; padding: 0; }
+  body { overscroll-behavior: none; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(140, 113, 107, 0.25); border-radius: 9999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(140, 113, 107, 0.2); border-radius: 4px; }
+</style>
+</head>
+<body data-page="workspace" data-state="loading" class="bg-surface font-sans text-on-surface antialiased min-h-screen flex flex-col selection:bg-primary/15 selection:text-primary">
+
+<!-- Top bar -->
+<header class="sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-surface-variant/70 shadow-[0_1px_4px_rgba(32,26,24,0.03)]">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+      <a class="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs sm:text-sm font-medium whitespace-nowrap" href="/studio">
+        <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+        <span class="hidden sm:inline">상담원 목록</span>
+      </a>
+      <div class="h-4 w-px bg-surface-variant hidden sm:block"></div>
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-xl sm:text-2xl shrink-0 select-none" id="top-agent-emoji">🤖</span>
+        <div class="flex items-center gap-2 min-w-0">
+          <h1 class="text-sm sm:text-base font-semibold text-on-surface truncate" id="top-agent-name">상담원을 불러오는 중…</h1>
+          <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap max-w-[8rem] sm:max-w-none truncate bg-surface-container text-on-surface-variant border-outline-variant/40" id="agent-type-badge" data-type="" hidden></span>
+          <span class="hidden md:inline-flex items-center gap-1 text-[11px] text-on-surface-variant whitespace-nowrap" id="agent-expiry-text" hidden></span>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs sm:text-sm font-medium transition-colors border border-outline-variant/30 active:scale-95" id="share-btn" type="button">
+        <span class="material-symbols-outlined text-[17px] text-primary">share</span>
+        <span class="hidden sm:inline">공유 링크</span>
+        <span class="sm:hidden">공유</span>
+      </button>
+      <div class="relative" id="more-menu-wrapper">
+        <button aria-label="더보기" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu-dropdown" class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" id="more-menu-btn" type="button">
+          <span class="material-symbols-outlined text-[20px]">more_vert</span>
+        </button>
+        <div class="absolute right-0 mt-1.5 w-56 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant/40 py-1.5 z-50 text-xs font-medium" id="more-menu-dropdown" role="menu" hidden>
+          <button class="w-full text-left px-3.5 py-2 hover:bg-surface-container text-on-surface flex items-center gap-2" id="menu-new-session" role="menuitem" type="button">
+            <span class="material-symbols-outlined text-[16px] text-primary">refresh</span>
+            <span>새 세션으로 초기화</span>
+          </button>
+          <button class="w-full text-left px-3.5 py-2 hover:bg-surface-container text-on-surface flex items-center gap-2" id="menu-export-json" role="menuitem" type="button">
+            <span class="material-symbols-outlined text-[16px]">file_download</span>
+            <span>설정 내보내기 (JSON)</span>
+          </button>
+          <div class="border-t border-surface-variant/60 my-1 pt-1" id="custom-only-actions" hidden>
+            <button class="w-full text-left px-3.5 py-2 hover:bg-error-container/40 text-error flex items-center gap-2" id="menu-delete-agent" role="menuitem" type="button">
+              <span class="material-symbols-outlined text-[16px]">delete</span>
+              <span>상담원 삭제</span>
+            </button>
+          </div>
+          <div class="px-3.5 py-1.5 text-[10px] text-tertiary bg-surface-container-low border-t border-surface-variant/40 mt-1" id="preset-notice" hidden>기본 프리셋 상담원은 설정을 바꾸거나 지울 수 없습니다.</div>
+        </div>
+      </div>
+      <button aria-label="테마 전환" class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" id="theme-toggle" type="button">
+        <span class="material-symbols-outlined text-[18px] dark:hidden">dark_mode</span>
+        <span class="material-symbols-outlined text-[18px] hidden dark:inline-block">light_mode</span>
+      </button>
+    </div>
+  </div>
+  <!-- Workspace tabs -->
+  <div class="max-w-6xl mx-auto px-4 border-t border-surface-variant/40" id="ws-tabbar">
+    <nav aria-label="워크스페이스 탭" role="tablist" class="flex items-center gap-1 sm:gap-2 overflow-x-auto py-1">
+      <button class="ws-tab px-3 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all inline-flex items-center gap-1.5 whitespace-nowrap font-semibold bg-surface-container-highest text-primary" id="tab-btn-conversation" role="tab" aria-selected="true" aria-controls="tab-panel-conversation" tabindex="0" type="button" data-tab="conversation">
+        <span aria-hidden="true">💬</span><span>대화</span>
+      </button>
+      <button class="ws-tab px-3 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container" id="tab-btn-knowledge" role="tab" aria-selected="false" aria-controls="tab-panel-knowledge" tabindex="-1" type="button" data-tab="knowledge">
+        <span aria-hidden="true">📚</span><span>자료</span>
+      </button>
+      <button class="ws-tab px-3 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container" id="tab-btn-settings" role="tab" aria-selected="false" aria-controls="tab-panel-settings" tabindex="-1" type="button" data-tab="settings">
+        <span aria-hidden="true">⚙️</span><span>설정</span>
+      </button>
+      <button class="ws-tab px-3 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container" id="tab-btn-scorecard" role="tab" aria-selected="false" aria-controls="tab-panel-scorecard" tabindex="-1" type="button" data-tab="scorecard">
+        <span aria-hidden="true">🧪</span><span>성적표</span>
+      </button>
+      <button class="ws-tab px-3 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm transition-all inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container" id="tab-btn-abtest" role="tab" aria-selected="false" aria-controls="tab-panel-abtest" tabindex="-1" type="button" data-tab="abtest">
+        <span aria-hidden="true">⚖️</span><span>A/B 비교</span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main class="flex-1 max-w-6xl w-full mx-auto px-4 py-4 sm:py-6 flex flex-col">
+
+  <!-- Share link (filled on share click) -->
+  <input class="w-full mb-3 px-3 py-1.5 text-xs rounded-lg bg-surface-container-lowest border border-outline-variant/40 text-on-surface font-mono focus:outline-none focus:border-primary" id="share-url-input" type="text" readonly aria-label="공유 링크" hidden>
+
+  <!-- Not found (404) -->
+  <div class="mb-6 p-6 rounded-2xl bg-surface-container-lowest border border-error/30 shadow-sm text-center flex flex-col items-center justify-center gap-3" id="agent-recovery-card" hidden>
+    <div class="w-12 h-12 rounded-full bg-error-container/40 text-error flex items-center justify-center">
+      <span class="material-symbols-outlined text-[28px]">search_off</span>
+    </div>
+    <h2 class="text-base font-semibold text-on-surface" id="recovery-title">상담원을 찾을 수 없습니다</h2>
+    <p class="text-xs sm:text-sm text-on-surface-variant max-w-md" id="recovery-desc">상담원을 찾을 수 없습니다. 만료되었거나 지워졌을 수 있습니다.</p>
+    <div class="flex items-center gap-2 mt-2">
+      <a class="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs sm:text-sm font-medium transition-colors" id="recovery-back" href="/studio">스튜디오 목록으로 이동</a>
+    </div>
+  </div>
+
+  <!-- Network / server error -->
+  <div class="mb-6 p-6 rounded-2xl bg-surface-container-lowest border border-error/30 shadow-sm text-center flex flex-col items-center justify-center gap-3" id="agent-error-state" role="alert" hidden>
+    <div class="w-12 h-12 rounded-full bg-error-container/40 text-error flex items-center justify-center">
+      <span class="material-symbols-outlined text-[28px]">wifi_off</span>
+    </div>
+    <h2 class="text-base font-semibold text-on-surface" id="agent-error-title">상담원 정보를 불러올 수 없습니다</h2>
+    <p class="text-xs sm:text-sm text-on-surface-variant max-w-md" id="agent-error-desc">서버에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.</p>
+    <div class="flex flex-wrap items-center justify-center gap-2 mt-2">
+      <button class="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs sm:text-sm font-medium transition-colors inline-flex items-center gap-1.5" id="btn-retry-load" type="button">
+        <span class="material-symbols-outlined text-[16px]">refresh</span><span>다시 불러오기</span>
+      </button>
+      <a class="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/40 rounded-xl text-xs sm:text-sm font-medium transition-colors" href="/studio">스튜디오 목록으로 이동</a>
+    </div>
+  </div>
+
+  <!-- Expiry notice (user agents only) -->
+  <div class="mb-4 p-3 sm:p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs sm:text-sm text-amber-900" id="expired-banner" role="status" hidden>
+    <span class="material-symbols-outlined text-amber-600 text-[20px] shrink-0">schedule</span>
+    <span id="expired-banner-msg"></span>
+  </div>
+
+  <!-- Creation warnings (from the create step) -->
+  <div class="mb-4 p-3 sm:p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs sm:text-sm text-on-surface" id="warnings-box" role="status" hidden></div>
+
+  <!-- TAB 1: conversation -->
+  <section class="flex-1 flex flex-col bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-sm overflow-hidden min-h-[580px]" id="tab-panel-conversation" role="tabpanel" aria-labelledby="tab-btn-conversation">
+    <div class="px-4 py-3 bg-surface-container-low/60 border-b border-outline-variant/30 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-2 h-2 rounded-full bg-primary"></span>
+        <span class="text-xs font-semibold text-on-surface">글자·음성 대화</span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-on-secondary-container text-[11px] font-medium border border-secondary/20" id="queue-badge" hidden>
+          <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>
+          <span id="queue-badge-text">대기 중…</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant text-[11px] font-medium border border-outline-variant/30" title="이 세션에서 물어볼 수 있는 남은 질문 수">
+          <span class="material-symbols-outlined text-[13px] text-primary">chat_bubble_outline</span>
+          <span>남은 질문 <strong class="text-on-surface" id="quota-count">-</strong> / <span id="quota-max">-</span></span>
+        </div>
+        <button class="w-7 h-7 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-error transition-colors" id="btn-new-session" title="새 세션으로 초기화" aria-label="새 세션으로 초기화" type="button">
+          <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+        </button>
+      </div>
+    </div>
+    <div class="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 custom-scrollbar" id="dialogue-scroll-area">
+      <div class="p-3.5 sm:p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 flex items-start gap-3" id="agent-greeting-card">
+        <div class="w-9 h-9 rounded-xl bg-primary-fixed flex items-center justify-center text-lg shrink-0" id="greeting-avatar">🤖</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-semibold text-xs sm:text-sm text-on-surface" id="greeting-agent-name"></span>
+          </div>
+          <p class="text-xs sm:text-sm text-on-surface leading-relaxed" id="greeting-description"></p>
+        </div>
+      </div>
+      <div class="space-y-1.5 pt-1" id="sample-questions-wrap">
+        <span class="text-[11px] font-medium text-on-surface-variant flex items-center gap-1">
+          <span class="material-symbols-outlined text-[13px] text-primary">tips_and_updates</span>
+          추천 질문 (누르면 바로 물어봅니다)
+        </span>
+        <div class="flex flex-wrap gap-1.5 sm:gap-2" id="sample-chips-container"></div>
+      </div>
+      <div class="h-px bg-surface-variant/50 my-2"></div>
+      <div class="space-y-4" id="messages-list"></div>
+      <div class="flex items-start gap-2.5 sm:gap-3 max-w-[85%]" id="responding-indicator" hidden>
+        <div class="w-8 h-8 rounded-lg bg-primary-fixed flex items-center justify-center text-sm shrink-0" id="indicator-avatar">🤖</div>
+        <div class="bg-surface p-3 rounded-2xl border border-outline-variant/40 text-xs text-on-surface flex items-center gap-2">
+          <span class="inline-flex gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:150ms]"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]"></span>
+          </span>
+          <span class="text-on-surface-variant font-medium" id="responding-text">답을 만드는 중…</span>
+        </div>
+      </div>
+    </div>
+    <div class="px-4 py-2 bg-error-container/30 border-t border-error/20 flex items-center justify-between text-xs text-error" id="mic-active-strip" hidden>
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-error"></span>
+        </span>
+        <span class="font-medium">듣고 있습니다. 말씀이 끝나면 마이크를 다시 누르세요.</span>
+      </div>
+      <div class="flex items-center gap-1 h-3">
+        <span class="w-1 h-3 bg-error rounded-full animate-pulse"></span>
+        <span class="w-1 h-5 bg-error rounded-full animate-pulse [animation-delay:100ms]"></span>
+        <span class="w-1 h-2 bg-error rounded-full animate-pulse [animation-delay:200ms]"></span>
+        <span class="w-1 h-4 bg-error rounded-full animate-pulse [animation-delay:300ms]"></span>
+      </div>
+    </div>
+    <div class="p-3 sm:p-4 bg-surface-container-low/70 border-t border-outline-variant/30">
+      <form class="flex flex-col gap-2" id="chat-form">
+        <div class="px-3 py-2 rounded-lg bg-error-container/40 border border-error/30 text-xs text-on-error-container" id="chat-error" role="alert" hidden></div>
+        <div class="relative flex items-end gap-2 bg-surface rounded-xl border border-outline-variant/40 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary shadow-inner p-1.5 transition-all">
+          <textarea class="flex-1 min-w-0 bg-transparent px-2.5 py-1 text-xs sm:text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none resize-none max-h-32 custom-scrollbar border-0 focus:ring-0" id="chat-textarea" placeholder="궁금한 것을 입력하거나 마이크를 눌러 말해 보세요 (Shift+Enter 줄바꿈)" rows="2" aria-label="질문"></textarea>
+          <div class="flex items-center gap-1 shrink-0 pb-0.5">
+            <button class="w-9 h-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" id="mic-btn" aria-pressed="false" aria-label="음성으로 묻기" title="음성으로 묻기" type="button">
+              <span class="material-symbols-outlined text-[20px]">mic</span>
+            </button>
+            <button class="h-9 px-3.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-medium text-xs sm:text-sm transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50" id="send-btn" type="submit">
+              <span>전송</span>
+              <span class="material-symbols-outlined text-[17px]">send</span>
+            </button>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-1 text-[11px] text-on-surface-variant px-1">
+          <span><span id="char-counter">0</span> / <span id="char-max-limit">500</span>자 · Enter 키로 전송</span>
+          <span id="mic-hint" hidden>이 서버에서는 글자로 물어보세요</span>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- TAB 2: knowledge -->
+  <section class="flex-1 flex flex-col bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-4 sm:p-6 shadow-sm" id="tab-panel-knowledge" role="tabpanel" aria-labelledby="tab-btn-knowledge" hidden>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-surface-variant/40 mb-4">
+      <div>
+        <h2 class="text-base font-semibold text-on-surface flex items-center gap-2"><span aria-hidden="true">📚</span><span>상담원이 아는 자료</span></h2>
+        <p class="text-xs text-on-surface-variant mt-0.5">답할 때 근거로 쓰는 자료 조각입니다. 대화의 근거를 누르면 여기서 그 조각을 보여 줍니다.</p>
+      </div>
+      <span class="px-2.5 py-1 rounded-full bg-surface-container text-xs font-mono font-medium text-secondary whitespace-nowrap" id="knowledge-chunk-counter">총 -개</span>
+    </div>
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mb-4">
+      <div class="relative flex-1">
+        <span class="material-symbols-outlined absolute left-3 top-2 text-[18px] text-on-surface-variant">search</span>
+        <input class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="knowledge-search-input" type="search" placeholder="제목이나 내용으로 찾기" aria-label="자료 찾기">
+      </div>
+      <button class="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-xs text-on-surface flex items-center justify-center gap-1 border border-outline-variant/30" id="knowledge-refresh-btn" type="button">
+        <span class="material-symbols-outlined text-[15px]">refresh</span><span>새로고침</span>
+      </button>
+    </div>
+    <div class="mb-3 px-3 py-2 rounded-lg bg-error-container/40 border border-error/30 text-xs text-on-error-container" id="knowledge-error" role="alert" hidden></div>
+    <ul class="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1 min-h-[360px]" id="knowledge-chunk-list"></ul>
+    <div class="pt-4 border-t border-surface-variant/40 flex items-center justify-between gap-2 mt-2">
+      <span class="text-[11px] text-on-surface-variant font-mono" id="knowledge-pagination-info">0 / 0</span>
+      <button class="px-4 py-1.5 rounded-lg bg-surface hover:bg-surface-container border border-outline-variant/40 text-xs font-medium text-primary hover:border-primary/50 transition-colors" id="knowledge-load-more-btn" type="button" hidden>더 보기</button>
+    </div>
+  </section>
+
+  <!-- TAB 3: settings -->
+  <section class="flex-1 flex flex-col bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-4 sm:p-6 shadow-sm" id="tab-panel-settings" role="tabpanel" aria-labelledby="tab-btn-settings" hidden>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-surface-variant/40 mb-5">
+      <div>
+        <h2 class="text-base font-semibold text-on-surface flex items-center gap-2"><span aria-hidden="true">⚙️</span><span>상담원 설정</span></h2>
+        <p class="text-xs text-on-surface-variant mt-0.5">이름, 말투, 답 길이, 목소리, 모르는 질문에 답하는 방식을 바꿉니다. 저장하면 다음 질문부터 적용됩니다.</p>
+      </div>
+      <button class="px-4 py-1.5 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold transition-colors flex items-center gap-1 disabled:opacity-50" id="settings-save-btn" type="submit" form="settings-form">
+        <span class="material-symbols-outlined text-[16px]">save</span><span>설정 저장</span>
+      </button>
+    </div>
+    <div class="mb-4 p-3 rounded-xl bg-surface-container border border-outline-variant/40 flex items-center gap-2.5 text-xs text-on-surface" id="preset-readonly-banner" hidden>
+      <span class="material-symbols-outlined text-secondary text-[20px]">lock</span>
+      <div><strong>기본 프리셋</strong>: 여러 사람이 함께 쓰는 상담원이라 설정을 보기만 할 수 있습니다.</div>
+    </div>
+    <div class="mb-4 px-3 py-2 rounded-lg bg-error-container/40 border border-error/30 text-xs text-on-error-container" id="settings-error" role="alert" hidden></div>
+    <p class="mb-4 text-xs text-on-surface-variant" id="settings-status" role="status"></p>
+    <form class="space-y-5" id="settings-form">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="space-y-4">
+          <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-3">
+            <h3 class="text-xs font-bold text-primary">기본 정보</h3>
+            <div>
+              <label class="block text-xs font-medium text-on-surface mb-1" for="setting-input-name">상담원 이름</label>
+              <input class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="setting-input-name" type="text" placeholder="예: 민원 안내원">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-medium text-on-surface mb-1" for="setting-input-tone">말투</label>
+                <select class="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="setting-input-tone"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-on-surface mb-1" for="setting-input-length">답 길이</label>
+                <select class="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="setting-input-length"></select>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-3">
+            <h3 class="text-xs font-bold text-primary">목소리</h3>
+            <div>
+              <label class="block text-xs font-medium text-on-surface mb-1" for="setting-select-voice">답을 읽어 줄 목소리</label>
+              <select class="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="setting-select-voice"></select>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-3">
+            <h3 class="text-xs font-bold text-secondary">모르는 질문과 피할 주제</h3>
+            <div>
+              <label class="block text-xs font-medium text-on-surface mb-1" for="setting-unknown-behavior">모르는 질문에는</label>
+              <select class="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="setting-unknown-behavior"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-on-surface mb-1" for="setting-handoff-message">담당자 안내 문구</label>
+              <input class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="setting-handoff-message" type="text" placeholder="예: 담당자에게 문의해 주세요.">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-on-surface mb-1" for="setting-avoid-topics">피할 주제 (쉼표로 구분)</label>
+              <input class="w-full px-3 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="setting-avoid-topics" type="text" placeholder="예: 정치, 투자 권유">
+            </div>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-3">
+            <h3 class="text-xs font-bold text-secondary">요약해서 답하기</h3>
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1">
+                <label class="text-xs font-medium text-on-surface block cursor-pointer" for="setting-summary-toggle">근거를 요약해서 답하기</label>
+                <p class="text-[11px] text-tertiary mt-0.5">끄면 자료 문장을 그대로 읽어 줍니다.</p>
+              </div>
+              <input class="mt-1 accent-primary h-4 w-4 rounded cursor-pointer" id="setting-summary-toggle" type="checkbox">
+            </div>
+            <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-1.5" id="summary-privacy-notice">
+              <span class="material-symbols-outlined text-[15px] shrink-0">lock_person</span>
+              <span>켜면 질문과 근거 일부가 외부 요약 서비스로 전송됩니다. 음성은 전송되지 않습니다.</span>
+            </div>
+          </div>
+          <div class="p-4 rounded-xl bg-error-container/30 border border-error/30 flex flex-wrap items-center justify-between gap-3" id="settings-delete-section" hidden>
+            <div class="text-xs text-error">
+              <strong>상담원 삭제</strong>
+              <div class="text-[11px] text-on-surface-variant">이 상담원과 자료, 대화 세션을 지웁니다. 되돌릴 수 없습니다.</div>
+            </div>
+            <button class="px-3 py-1.5 rounded-lg bg-error hover:bg-error/90 text-white text-xs font-semibold transition-colors flex items-center gap-1" id="settings-delete-btn" type="button">
+              <span class="material-symbols-outlined text-[15px]">delete_forever</span><span>상담원 삭제</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <!-- TAB 4: scorecard -->
+  <section class="flex-1 flex flex-col bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-4 sm:p-6 shadow-sm" id="tab-panel-scorecard" role="tabpanel" aria-labelledby="tab-btn-scorecard" hidden>
+    <div class="pb-4 border-b border-surface-variant/40 mb-5">
+      <h2 class="text-base font-semibold text-on-surface flex items-center gap-2"><span aria-hidden="true">🧪</span><span>성적표</span></h2>
+      <p class="text-xs text-on-surface-variant mt-0.5">자료에서 질문을 자동으로 만들어 상담원이 맞는 자료로 답하는지, 첫 음성까지 얼마나 걸리는지 시험합니다.</p>
+    </div>
+    <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-low/70 border border-outline-variant/30 space-y-4 max-w-2xl">
+      <div class="flex flex-wrap items-end gap-4">
+        <div>
+          <label class="block text-xs font-medium text-on-surface mb-1" for="scorecard-n">시험 질문 수</label>
+          <select class="px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface" id="scorecard-n">
+            <option value="10">10개</option>
+            <option value="20">20개</option>
+            <option value="30" selected>30개</option>
+          </select>
+        </div>
+        <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer pb-1.5" for="scorecard-voice">
+          <input class="accent-primary h-4 w-4 rounded cursor-pointer" id="scorecard-voice" type="checkbox" checked>
+          <span>음성 질문도 시험하기</span>
+        </label>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-medium text-xs sm:text-sm flex items-center gap-2 shadow-sm active:scale-95 transition-all disabled:opacity-50" id="scorecard-start-btn" type="button">
+          <span class="material-symbols-outlined text-[18px]">play_arrow</span><span>성적표 만들기</span>
+        </button>
+        <button class="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-xs text-on-surface border border-outline-variant/40 rounded-xl transition-all" id="scorecard-retry-btn" type="button" hidden>다시 시도</button>
+      </div>
+    </div>
+    <div class="mt-4 px-3 py-2 rounded-lg bg-error-container/40 border border-error/30 text-xs text-on-error-container max-w-2xl" id="scorecard-error" role="alert" hidden></div>
+    <div class="mt-5 p-4 rounded-xl bg-surface-container-low border border-outline-variant/20 space-y-2 max-w-2xl" id="scorecard-progress" data-status="" hidden>
+      <div class="flex items-center gap-2 text-xs text-on-surface">
+        <span class="material-symbols-outlined text-[18px] text-primary animate-spin">progress_activity</span>
+        <span id="scorecard-progress-text">시험을 준비하는 중…</span>
+      </div>
+      <div class="w-full bg-surface-container-highest rounded-full h-2.5 overflow-hidden border border-outline-variant/20">
+        <div class="bg-primary h-2.5 rounded-full transition-all duration-300" id="scorecard-progress-bar" style="width: 0%;"></div>
+      </div>
+    </div>
+    <div class="mt-5 flex-col space-y-4" id="scorecard-report" hidden>
+      <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+        <span class="material-symbols-outlined text-[16px] text-amber-600 shrink-0">info</span>
+        <span id="sc-caveat"></span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+        <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-1.5">
+          <div class="flex items-center justify-between text-xs text-on-surface-variant">
+            <span class="font-medium">글자 질문 정답</span>
+            <span class="material-symbols-outlined text-[16px] text-primary">check_circle</span>
+          </div>
+          <div class="text-lg font-bold font-mono text-on-surface" id="sc-text-hits"></div>
+        </div>
+        <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-1.5">
+          <div class="flex items-center justify-between text-xs text-on-surface-variant">
+            <span class="font-medium">음성 질문 정답</span>
+            <span class="material-symbols-outlined text-[16px] text-secondary">record_voice_over</span>
+          </div>
+          <div class="text-sm font-semibold font-mono text-on-surface" id="sc-voice-hits"></div>
+        </div>
+        <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-1.5">
+          <div class="flex items-center justify-between text-xs text-on-surface-variant">
+            <span class="font-medium">첫 음성까지</span>
+            <span class="material-symbols-outlined text-[16px] text-primary">speed</span>
+          </div>
+          <div class="text-sm font-semibold font-mono text-on-surface" id="sc-first-audio"></div>
+        </div>
+      </div>
+      <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-2">
+        <div class="flex items-center justify-between text-xs text-on-surface-variant">
+          <span class="font-medium">질문 유형별</span>
+          <span class="material-symbols-outlined text-[16px] text-primary">compare_arrows</span>
+        </div>
+        <div class="space-y-1.5 text-xs" id="sc-by-style"></div>
+      </div>
+      <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-2">
+        <h4 class="text-xs font-bold text-on-surface flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-primary">lightbulb</span>고칠 점</h4>
+        <ul class="space-y-1.5 text-xs text-on-surface-variant list-disc pl-4" id="sc-hints"></ul>
+      </div>
+      <div class="p-4 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 space-y-3">
+        <h4 class="text-xs font-bold text-on-surface flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-error">error_outline</span>틀린 질문</h4>
+        <div class="space-y-2.5" id="sc-failures"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: A/B -->
+  <section class="flex-1 flex flex-col bg-surface-container-lowest rounded-2xl border border-outline-variant/40 p-4 sm:p-6 shadow-sm" id="tab-panel-abtest" role="tabpanel" aria-labelledby="tab-btn-abtest" hidden>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-surface-variant/40 mb-5">
+      <div>
+        <h2 class="text-base font-semibold text-on-surface flex items-center gap-2"><span aria-hidden="true">⚖️</span><span>A/B 비교</span></h2>
+        <p class="text-xs text-on-surface-variant mt-0.5">같은 질문을 두 설정으로 물어 답, 근거, 첫 음성까지 걸린 시간을 나란히 봅니다. 저장된 설정은 바뀌지 않습니다.</p>
+      </div>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-xs font-medium text-secondary border border-outline-variant/30 whitespace-nowrap">
+        <span class="material-symbols-outlined text-[14px] text-primary">bolt</span><span>비교하면 질문 1회를 씁니다</span>
+      </span>
+    </div>
+    <div class="space-y-4 mb-5">
+      <div class="p-4 rounded-2xl bg-surface-container-low/70 border border-outline-variant/30 space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-semibold text-on-surface flex items-center gap-1.5" for="ab-question">
+            <span class="material-symbols-outlined text-[16px] text-primary">help_outline</span><span>비교할 질문</span>
+          </label>
+          <span class="text-[11px] text-on-surface-variant font-mono" id="ab-char-counter">0 / 500</span>
+        </div>
+        <textarea class="w-full px-3 py-2 text-xs sm:text-sm rounded-xl bg-surface border border-outline-variant/40 focus:outline-none focus:border-primary text-on-surface resize-none leading-relaxed custom-scrollbar" id="ab-question" rows="2" placeholder="두 설정으로 물어볼 질문을 입력하거나 추천 질문을 고르세요"></textarea>
+        <div class="flex flex-wrap items-center gap-2" id="ab-sample-chips"></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30 space-y-2.5 text-xs">
+          <div class="flex items-center gap-2 pb-2.5 border-b border-surface-variant/40">
+            <span class="w-6 h-6 rounded-lg bg-surface text-on-surface border border-outline-variant/30 flex items-center justify-center font-mono font-bold text-xs">A</span>
+            <span class="text-xs font-semibold text-on-surface">설정 A</span>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-on-surface-variant mb-1" for="ab-a-tone">말투</label>
+            <select class="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary" id="ab-a-tone"><option value="">(기본값 유지)</option></select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-on-surface-variant mb-1" for="ab-a-length">답 길이</label>
+            <select class="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary" id="ab-a-length"><option value="">(기본값 유지)</option></select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-on-surface-variant mb-1" for="ab-a-voice">목소리</label>
+            <select class="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary" id="ab-a-voice"><option value="">(기본값 유지)</option></select>
+          </div>
+          <div class="flex items-center justify-between pt-1 border-t border-surface-variant/30">
+            <label class="text-[11px] text-on-surface-variant cursor-pointer" for="ab-a-summary">요약해서 답하기</label>
+            <input class="accent-primary h-4 w-4 rounded cursor-pointer" id="ab-a-summary" type="checkbox">
+          </div>
+        </div>
+        <div class="p-4 rounded-2xl bg-surface-container-low border-2 border-primary/25 space-y-2.5 text-xs">
+          <div class="flex items-center gap-2 pb-2.5 border-b border-surface-variant/40">
+            <span class="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center font-mono font-bold text-xs">B</span>
+            <span class="text-xs font-semibold text-on-surface">설정 B</span>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-on-surface-variant mb-1" for="ab-b-tone">말투</label>
+            <select class="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary" id="ab-b-tone"><option value="">(기본값 유지)</option></select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-on-surface-variant mb-1" for="ab-b-length">답 길이</label>
+            <select class="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary" id="ab-b-length"><option value="">(기본값 유지)</option></select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-on-surface-variant mb-1" for="ab-b-voice">목소리</label>
+            <select class="w-full px-2.5 py-1.5 rounded-lg bg-surface border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary" id="ab-b-voice"><option value="">(기본값 유지)</option></select>
+          </div>
+          <div class="flex items-center justify-between pt-1 border-t border-surface-variant/30">
+            <label class="text-[11px] text-on-surface-variant cursor-pointer" for="ab-b-summary">요약해서 답하기</label>
+            <input class="accent-primary h-4 w-4 rounded cursor-pointer" id="ab-b-summary" type="checkbox">
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+        <button class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all disabled:opacity-50" id="ab-run-btn" type="button">
+          <span class="material-symbols-outlined text-[18px]">balance</span><span>두 설정으로 비교하기</span>
+        </button>
+      </div>
+    </div>
+    <div class="py-6 flex items-center justify-center gap-2 text-xs text-on-surface-variant" id="ab-spinner" role="status" hidden>
+      <span class="material-symbols-outlined text-[20px] text-primary animate-spin">progress_activity</span>
+      <span>두 설정으로 답을 만드는 중…</span>
+    </div>
+    <div class="mb-3 p-3 rounded-xl bg-error-container/30 border border-error/30 text-xs text-error" id="ab-error" role="alert" hidden></div>
+    <div class="space-y-5 pt-2" id="ab-result" hidden>
+      <div class="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30 space-y-2.5">
+        <h3 class="text-xs font-bold text-on-surface flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px] text-primary">compare_arrows</span>차이 (B − A)</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs" id="ab-diff"></div>
+        <ul class="text-xs text-on-surface-variant bg-surface p-2.5 rounded-xl border border-outline-variant/20 leading-relaxed list-disc pl-6 space-y-1" id="ab-notes"></ul>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-low border border-outline-variant/30 space-y-3" id="ab-col-a">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-surface text-on-surface border border-outline-variant/30 flex items-center justify-center font-mono font-bold text-xs">A</span>
+              <span class="text-xs font-semibold text-on-surface">설정 A 답</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant">
+              <span class="px-2 py-0.5 rounded bg-surface border border-outline-variant/30">첫 음성까지 <span class="ab-first-audio">-</span></span>
+              <span class="px-2 py-0.5 rounded bg-surface border border-outline-variant/30"><span class="ab-sentence-count">-</span>문장</span>
+              <span class="px-2 py-0.5 rounded bg-surface border border-outline-variant/30"><span class="ab-char-count">-</span>자</span>
+            </div>
+          </div>
+          <p class="ab-answer text-xs sm:text-sm text-on-surface leading-relaxed bg-surface p-3 rounded-xl border border-outline-variant/30"></p>
+          <button class="ab-play inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-primary font-medium text-xs transition-colors border border-outline-variant/30 active:scale-95" type="button">
+            <span class="material-symbols-outlined text-[18px]">play_arrow</span><span>다시 듣기</span>
+          </button>
+          <div class="ab-evidence space-y-1.5 text-[11px] text-on-surface-variant"></div>
+        </div>
+        <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-low border-2 border-primary/25 space-y-3" id="ab-col-b">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center font-mono font-bold text-xs">B</span>
+              <span class="text-xs font-semibold text-on-surface">설정 B 답</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant">
+              <span class="px-2 py-0.5 rounded bg-surface border border-outline-variant/30">첫 음성까지 <span class="ab-first-audio">-</span></span>
+              <span class="px-2 py-0.5 rounded bg-surface border border-outline-variant/30"><span class="ab-sentence-count">-</span>문장</span>
+              <span class="px-2 py-0.5 rounded bg-surface border border-outline-variant/30"><span class="ab-char-count">-</span>자</span>
+            </div>
+          </div>
+          <p class="ab-answer text-xs sm:text-sm text-on-surface leading-relaxed bg-surface p-3 rounded-xl border border-outline-variant/30"></p>
+          <button class="ab-play inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-primary font-medium text-xs transition-colors border border-outline-variant/30 active:scale-95" type="button">
+            <span class="material-symbols-outlined text-[18px]">play_arrow</span><span>다시 듣기</span>
+          </button>
+          <div class="ab-evidence space-y-1.5 text-[11px] text-on-surface-variant"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none px-4 w-full max-w-md" id="toast-container" aria-live="polite"></div>
+
+<script src="/static/studio/ws-core.js"></script>
+<script src="/static/studio/ws-chat.js"></script>
+<script src="/static/studio/ws-knowledge.js"></script>
+<script src="/static/studio/ws-settings.js"></script>
+<script src="/static/studio/ws-scorecard.js"></script>
+<script src="/static/studio/ws-compare.js"></script>
+</body>
+</html>
