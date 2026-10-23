@@ -19,6 +19,16 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     llm_model: str = "qwen3.7-flash"
     llm_timeout_s: float = 8.0
+    agent_ttl_hours: float = 24.0
+    max_agents: int = 200
+    max_text_chars: int = 20000
+    max_csv_rows: int = 300
+    max_csv_chars: int = 100000
+    session_max_questions: int = 30
+    turn_concurrency: int = 2
+    turn_queue_max: int = 8
+    scorecard_queue_max: int = 4
+    presets_dir: Path = Path("data/presets")
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
