@@ -10,6 +10,7 @@ This project uses public or synthetic data only. Raw downloads go to data/raw/ (
 | 경기도 시흥시_챗봇 FAQ 시나리오 (공공데이터포털 15148282) | https://www.data.go.kr/data/15148282/fileData.do | 이용허락범위 제한 없음 (공공데이터포털 표기) | 2025-09-01 (다운로드 2026-10-22) | 인텐트명·답변·대분류 열, 전처리 후 570건 → `data/faq/faq.jsonl` |
 | tests/fixtures/faq_eval.jsonl | 이 저장소 (faq.jsonl에서 규칙으로 생성) | CC0 | 2026-10-22 | 질의 42건 (변형 40 + 센티널 2) |
 | tests/fixtures/faq_eval_colloquial.jsonl | 이 저장소 (AI 보조 작성, 지침 docs/eval-colloquial.md) | CC0 | 2026-10-23 | 질의 46건 (답 있음 38 + none 8) |
+| data/samples/fitness-center.{txt,csv} | 이 저장소 (합성, 가상의 헬스장, 실제 업체 안내 아님) | CC0 | 2026-10-27 | 텍스트 14조각 · CSV 18행, 업로드 상담원 검색·답변 확인용 (ADR-012) |
 | tests/fixtures/ask_faq001_ko.wav | 이 저장소 (Supertonic 3로 합성, 가중치 OpenRAIL-M) | CC0 | 2026-10-22 | 질문 1문장, 사람 목소리 아님, 재생성 scripts/make_fixture_audio.py |
 
 ## Download
