@@ -17,6 +17,21 @@
   ::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar { width: 4px; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(140, 113, 107, 0.2); border-radius: 4px; }
+  /* Dark palette: overrides the light color tokens injected by tw-config.js (workspace page only). */
+  html.dark {
+    color-scheme: dark;
+    --c-background: 31 26 24; --c-surface: 31 26 24; --c-surface-dim: 31 26 24; --c-surface-bright: 58 51 48;
+    --c-surface-container-lowest: 25 20 18; --c-surface-container-low: 39 34 32; --c-surface-container: 43 37 34;
+    --c-surface-container-high: 54 48 45; --c-surface-container-highest: 65 58 55; --c-surface-variant: 83 67 65;
+    --c-on-background: 236 224 219; --c-on-surface: 236 224 219; --c-on-surface-variant: 216 194 188;
+    --c-outline: 160 140 135; --c-outline-variant: 83 67 65;
+    --c-inverse-surface: 236 224 219; --c-inverse-on-surface: 53 47 44; --c-inverse-primary: 172 51 27;
+    --c-secondary: 255 183 128; --c-on-secondary: 76 39 0;
+    --c-secondary-container: 111 56 0; --c-on-secondary-container: 255 220 196;
+    --c-tertiary: 208 196 190; --c-on-tertiary: 54 47 42;
+    --c-tertiary-container: 77 69 64; --c-on-tertiary-container: 236 224 217;
+    --c-error: 239 83 80; --c-error-container: 147 0 10; --c-on-error-container: 255 218 214;
+  }
 </style>
 </head>
 <body data-page="workspace" data-state="loading" class="bg-surface font-sans text-on-surface antialiased min-h-screen flex flex-col selection:bg-primary/15 selection:text-primary">

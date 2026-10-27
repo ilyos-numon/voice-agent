@@ -7,7 +7,7 @@
 <script src="/static/studio/vendor/tailwind-3.4.16.js"></script>
 <script src="/static/studio/tw-config.js"></script>
 <script src="/static/studio/api.js"></script>
-<style>[hidden]{display:none!important;}html,body{margin:0;padding:0;}body{overscroll-behavior:none;}.scrollbar-none::-webkit-scrollbar{display:none;}</style>
+<style>[hidden]{display:none!important;}html,body{margin:0;padding:0;}body{overscroll-behavior:none;}.scrollbar-none::-webkit-scrollbar{display:none;}html.dark .card-chunks{color:#ffb4a4;}</style>
 </head>
 <body class="bg-surface font-body-md text-on-surface antialiased dark:bg-inverse-surface dark:text-inverse-on-surface" data-page="studio">
 <header class="fixed top-0 left-0 right-0 z-40 bg-surface/85 dark:bg-inverse-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(45,39,36,0.04)]">
@@ -59,12 +59,12 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-surface-container dark:bg-surface-variant/20 shadow-sm">
 <div class="relative flex-1 max-w-md"><span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-tertiary text-[18px]">search</span><input aria-label="상담원 검색" class="w-full h-9 pl-9 pr-3 rounded-lg border-0 bg-surface-container-lowest text-on-surface font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary transition-all" id="agent-search-input" placeholder="상담원 이름, 설명, 예시 질문 검색..." type="search"/></div>
 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none" id="category-filter-group" role="group" aria-label="분류">
-<button aria-pressed="true" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all" data-category="all" type="button">전체</button>
-<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all" data-category="civil-kiosk" type="button">🏛️ 공공/민원</button>
-<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all" data-category="restaurant" type="button">🍜 주문/식당</button>
-<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all" data-category="hospital" type="button">🏥 병원/접수</button>
-<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all" data-category="office-policy" type="button">🧑‍💼 사내/HR</button>
-<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all" data-category="custom" type="button">🤖 내 상담원</button>
+<button aria-pressed="true" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all dark:aria-[pressed=false]:bg-surface-variant/20 dark:aria-[pressed=false]:text-inverse-on-surface" data-category="all" type="button">전체</button>
+<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all dark:aria-[pressed=false]:bg-surface-variant/20 dark:aria-[pressed=false]:text-inverse-on-surface" data-category="civil-kiosk" type="button">🏛️ 공공/민원</button>
+<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all dark:aria-[pressed=false]:bg-surface-variant/20 dark:aria-[pressed=false]:text-inverse-on-surface" data-category="restaurant" type="button">🍜 주문/식당</button>
+<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all dark:aria-[pressed=false]:bg-surface-variant/20 dark:aria-[pressed=false]:text-inverse-on-surface" data-category="hospital" type="button">🏥 병원/접수</button>
+<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all dark:aria-[pressed=false]:bg-surface-variant/20 dark:aria-[pressed=false]:text-inverse-on-surface" data-category="office-policy" type="button">🧑‍💼 사내/HR</button>
+<button aria-pressed="false" class="cat-pill shrink-0 px-3 py-1 rounded-lg font-label-sm text-label-sm transition-all dark:aria-[pressed=false]:bg-surface-variant/20 dark:aria-[pressed=false]:text-inverse-on-surface" data-category="custom" type="button">🤖 내 상담원</button>
 </div>
 </div>
 <!-- Cards -->
