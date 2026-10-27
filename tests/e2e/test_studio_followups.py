@@ -109,6 +109,13 @@ def test_toast_not_covering_delete_card(
     pg.context.close()
 
 
+def settle_tab(pg: Page, tab: str, knowledge: bool = False) -> None:
+    expect(pg.locator(f"#tab-btn-{tab}")).to_have_attribute("aria-selected", "true", timeout=10000)
+    if knowledge:
+        expect(pg.locator("#knowledge-chunk-counter")).to_have_text(re.compile(r"총 \d+개"), timeout=15000)
+    pg.wait_for_timeout(300)
+
+
 def test_dark_captures(page: Page, base_url: str, shot_dir: Path) -> None:
     pg = next(new_page(page, 1024, 768, "dark"))
     open_studio(pg, base_url)
@@ -119,9 +126,11 @@ def test_dark_captures(page: Page, base_url: str, shot_dir: Path) -> None:
     ask(pg, QUESTION)
     shot(pg, shot_dir, "dark-ws-chat.png")
     open_tab(pg, "knowledge")
+    settle_tab(pg, "knowledge", knowledge=True)
     assert is_dark(pg)
     shot(pg, shot_dir, "dark-ws-knowledge.png")
     open_tab(pg, "settings")
+    settle_tab(pg, "settings")
     assert is_dark(pg)
     shot(pg, shot_dir, "dark-ws-settings.png")
     pg.context.close()
@@ -135,6 +144,7 @@ def test_knowledge_full_capture(
     pg = next(new_page(page, 1024, 768, "light"))
     open_ws(pg, base_url, agent)
     open_tab(pg, "knowledge")
+    settle_tab(pg, "knowledge", knowledge=True)
     panel = pg.locator("#tab-panel-knowledge")
     expect(panel.get_by_text("운영 시간").first).to_be_visible(timeout=15000)
     panel.screenshot(path=str(shot_dir / "ws-knowledge-full.png"))
