@@ -21,14 +21,16 @@ Status: real STT (faster-whisper small) + real TTS (Supertonic 3) + BM25 retriev
    uv sync --extra dev && uv run uvicorn app.main:app --host localhost --port 8765    # 스텁: 무음, 모델 다운로드 없음
    uv sync --extra dev --extra tts --extra stt && STT_BACKEND=whisper TTS_BACKEND=supertonic RETRIEVER_BACKEND=bm25 FAQ_PATH=data/faq/faq.jsonl uv run --no-sync uvicorn app.main:app --host localhost --port 8765    # 실제 음성(듣기·말하기)
    ```
-2. `http://localhost:8765/studio` 를 연다(`/` 도 여기로 넘어간다). 프리셋 카드 4장 중 하나에서 "에이전트 시작하기"를 누르거나, "내 상담원 만들기"에서 글을 붙여 넣거나 `질문,답변` 두 열 CSV 를 올리고 "상담원 만들기"를 누른다. 만든 상담원은 이 브라우저의 "내 상담원" 칩에 남는다.
+   스텁 서버는 듣기·말하기가 꺼져 있어 글자로만 묻고 답한다. 🎤 와 음성 답은 두 번째 명령(실제 음성)으로 띄웠을 때만 나온다.
+2. `http://localhost:8765/studio` 를 연다(`/` 도 여기로 넘어간다). 프리셋 카드 4장 중 하나에서 "에이전트 시작하기"를 누르거나, "내 상담원 만들기"에서 글을 붙여 넣거나 `질문,답변` 두 열 CSV 를 올리고 "상담원 만들기"를 누른다. 만든 상담원은 이 브라우저의 "내 상담원" 칩에 남는다. 상담원은 서버 메모리에만 있어 서버를 다시 띄우면 사라진다(그때 스튜디오가 남은 칩을 확인하며 로그에 `GET /api/agents/<id> 404` 가 찍히고 칩을 지운다. 정상 동작이다).
+   - 바로 써 볼 자료: `data/samples/fitness-center.txt`(글 탭에 붙여 넣기, 13개 절) · `data/samples/fitness-center.csv`(CSV 탭, 18행). 가상의 헬스장 안내이고 두 파일 내용은 같다. 물어볼 질문 예: "일요일에도 문 열어요?", "PT 당일 취소하면 어떻게 돼요?", "수영장 있어요?"(자료에 없음 → "자료에 없다"), "주차 되나요?". 기대 답은 `tests/e2e/test_fitness_samples.py`, 검색 규칙은 `docs/decisions.md` ADR-012.
 3. 워크스페이스(`/studio/app?agent=<id>`)의 "대화" 탭에서 🎤 를 누르고 말한 뒤 다시 누르거나(실제 음성 서버), 글자로 묻거나 예시 질문을 누른다. 답 아래 "이 답의 영수증"을 펼치면 단계별 시간 막대·근거 각주·찾아본 자료가 보인다. "자료" 탭은 상담원이 아는 자료 조각, "설정" 탭은 설정 바꾸기(내 상담원만), "성적표"·"A/B 비교" 탭은 시험해보기와 비교다. "공유" 로 복사한 링크를 연 사람은 같은 상담원 워크스페이스로 바로 들어온다. 예전 공유 링크(`/talk?…`)는 같은 쿼리로 `/studio/app` 에 넘어간다.
 
-![만들기](docs/images/two-page-home.png)
+![상담원 목록](docs/images/studio-list.png)
 
-![대화와 영수증](docs/images/two-page-receipt.png)
+![대화와 영수증](docs/images/studio-workspace-chat.png)
 
-![휴대폰 폭](docs/images/two-page-mobile-talk.png)
+![휴대폰 폭](docs/images/studio-mobile.png)
 
 1차 키오스크 데모 화면은 `http://localhost:8765/static/archive/kiosk/index.html` 에 보관돼 있다. 옛 두 페이지 화면과 함께 `app/static/archive/README.md` 에 정리했다.
 

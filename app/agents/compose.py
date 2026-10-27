@@ -6,7 +6,13 @@ import unicodedata
 from collections.abc import Sequence
 
 from app.agents.models import AgentSettings
-from app.agents.retrieval import MIN_QUERY_COVERAGE, Candidate, query_coverage
+from app.agents.retrieval import (
+    MIN_QUERY_COVERAGE,
+    Candidate,
+    agent_tokenize,
+    content_tokens,
+    query_coverage,
+)
 
 UNKNOWN_TEXT = "제가 가진 자료에는 그 내용이 없어 답하기 어렵습니다."
 AVOIDED_TEXT = "그 주제는 안내해 드리지 않습니다."
@@ -37,9 +43,23 @@ def unknown_sentence(settings: AgentSettings) -> str:
     return settings.handoff_message if settings.when_unknown == "handoff" else UNKNOWN_TEXT
 
 
-def shape_sentences(sentences: Sequence[str], settings: AgentSettings) -> list[str]:
+def select_sentences(query: str, sentences: Sequence[str], n: int) -> list[str]:
+    """질문 내용어와 많이 겹치는 문장 먼저 (동점은 문서 순서). 모두 0이면 앞에서 n개."""
+    kept = [s for s in sentences if s.strip()]
+    q = content_tokens(query)
+    scores = [len(q & set(agent_tokenize(s))) for s in kept]
+    if not any(scores):
+        return kept[:n]
+    order = sorted(range(len(kept)), key=lambda i: (-scores[i], i))
+    return [kept[i] for i in order[:n]]
+
+
+def shape_sentences(
+    sentences: Sequence[str], settings: AgentSettings, query: str | None = None
+) -> list[str]:
     out = [s for s in sentences if s.strip()][: SENTENCE_LIMIT[settings.answer_length]]
-    if settings.tone == "friendly" and out and not out[0].startswith(FRIENDLY_PREFIX):
+    overlaps = bool(out) and (query is None or bool(content_tokens(query) & set(agent_tokenize(out[0]))))
+    if settings.tone == "friendly" and overlaps and not out[0].startswith(FRIENDLY_PREFIX):
         out[0] = FRIENDLY_PREFIX + out[0]
     return out
 
