@@ -82,7 +82,7 @@ def test_csv_presets_row_count_and_ids(presets: list[Preset], preset_id: str) ->
     assert len(p.agent.chunks) == len(_csv_rows(preset_id))
     assert [c.chunk_id for c in p.agent.chunks] == [f"q-{i:03d}" for i in range(1, len(p.agent.chunks) + 1)]
     for c in p.agent.chunks:
-        assert c.index_text == c.title
+        assert c.index_text == f"{c.title}\n{c.text}"
 
 
 @pytest.mark.parametrize("preset_id", CSV_PRESETS)

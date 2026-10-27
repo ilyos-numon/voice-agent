@@ -173,7 +173,7 @@ def parse_faq_csv(
             continue
         seen.add(key)
         chunks.append(
-            Chunk(chunk_id=f"q-{len(chunks) + 1:03d}", title=q, text=a, index_text=q, origin="faq_csv")
+            Chunk(chunk_id=f"q-{len(chunks) + 1:03d}", title=q, text=a, index_text=f"{q}\n{a}", origin="faq_csv")
         )
     if not chunks:
         raise KnowledgeError("knowledge_empty", "CSV에 쓸 수 있는 질문·답변 행이 없습니다")

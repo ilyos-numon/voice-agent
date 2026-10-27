@@ -31,7 +31,7 @@ def test_csv_korean_header_skipped() -> None:
         "q-001",
         "영업시간은?",
         "9시부터 6시까지입니다.",
-        "영업시간은?",
+        "영업시간은?\n9시부터 6시까지입니다.",
         "faq_csv",
     )
     assert warns == []
