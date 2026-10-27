@@ -13,6 +13,7 @@ from app.agents.compose import (
     SENTENCE_LIMIT,
     is_unknown,
     matches_avoid,
+    select_sentences,
     shape_sentences,
     system_prompt,
     unknown_sentence,
@@ -80,6 +81,11 @@ def _chunk_sentences(c: Candidate) -> list[str]:
     return split_sentences(c.chunk.text) or [c.chunk.text]
 
 
+def _rule_sentences(s: AgentSettings, transcript: str, candidates: list[Candidate]) -> list[str]:
+    picked = select_sentences(transcript, _chunk_sentences(candidates[0]), SENTENCE_LIMIT[s.answer_length])
+    return shape_sentences(picked, s, transcript)
+
+
 def _summarize(
     rt: AgentRuntime, s: AgentSettings, transcript: str, candidates: list[Candidate],
     tts: TTS, pool: ThreadPoolExecutor,
@@ -94,13 +100,13 @@ def _summarize(
         if not sentence.strip():
             continue
         if first is None:
-            first = pool.submit(_timed_tts, tts, shape_sentences([sentence], s)[0])
+            first = pool.submit(_timed_tts, tts, shape_sentences([sentence], s, transcript)[0])
         raw.append(sentence)
         if len(raw) >= limit:
             break
     if not raw:
-        return shape_sentences(_chunk_sentences(candidates[0]), s), None
-    return shape_sentences(raw, s), first
+        return _rule_sentences(s, transcript, candidates), None
+    return shape_sentences(raw, s, transcript), first
 
 
 def _fixed(text: str) -> list[GroundedSentence]:
@@ -142,7 +148,7 @@ def iter_turn(
                     sentences, first = _summarize(rt, s, transcript, candidates, tts, pool)
                     summary_used = first is not None  # LLM이 빈 출력이면 조각 원문으로 대체했다
                 else:
-                    sentences = shape_sentences(_chunk_sentences(candidates[0]), s)
+                    sentences = _rule_sentences(s, transcript, candidates)
                 think_ms = _ms(t)
                 grounded = ground_sentences(sentences, candidates)
 

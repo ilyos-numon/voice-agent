@@ -12,6 +12,7 @@ from app.agents.compose import (
     UNKNOWN_TEXT,
     is_unknown,
     matches_avoid,
+    select_sentences,
     shape_sentences,
     system_prompt,
     unknown_sentence,
@@ -103,3 +104,33 @@ def test_tune_unknown_chosen_matches_constant() -> None:
     last = out.stdout.strip().splitlines()[-1]
     assert last.startswith("CHOSEN ")
     assert float(last.split()[1]) == retrieval.MIN_QUERY_COVERAGE
+
+
+def test_select_sentences_no_overlap_keeps_document_order() -> None:
+    assert select_sentences("환불 규정", SENTS, 2) == SENTS[:2]
+
+
+def test_select_sentences_best_score_first_ties_in_document_order() -> None:
+    sents = ["요금은 월 7만 원입니다.", "", "취소는 앱에서 합니다.", "당일 취소하면 1회가 차감됩니다.",
+             "취소 문의는 전화로 받습니다."]
+    out = select_sentences("PT 당일 취소하면 어떻게 돼요?", sents, 3)
+    assert out == ["당일 취소하면 1회가 차감됩니다.", "취소는 앱에서 합니다.", "취소 문의는 전화로 받습니다."]
+
+
+def test_select_sentences_respects_n_and_skips_blank() -> None:
+    sents = ["  ", "주차는 지하입니다.", "주차 요금은 무료입니다.", "주차 시간은 2시간입니다."]
+    assert len(select_sentences("주차 요금", sents, 1)) == 1
+    assert select_sentences("주차 요금", sents, 1) == ["주차 요금은 무료입니다."]
+    assert select_sentences("없는말", sents, 10) == sents[1:]
+
+
+def test_friendly_prefix_only_when_first_sentence_overlaps_query() -> None:
+    s = AgentSettings(tone="friendly", answer_length="short")
+    assert shape_sentences(["주차장은 지하에 있습니다."], s, "주차 되나요?")[0] == FRIENDLY_PREFIX + "주차장은 지하에 있습니다."
+    assert shape_sentences(["요가는 매일 있습니다."], s, "수영장 있어요?") == ["요가는 매일 있습니다."]
+
+
+def test_friendly_prefix_query_none_keeps_old_behavior() -> None:
+    s = AgentSettings(tone="friendly", answer_length="short")
+    assert shape_sentences(["요가는 매일 있습니다."], s) == [FRIENDLY_PREFIX + "요가는 매일 있습니다."]
+    assert shape_sentences([FRIENDLY_PREFIX + "이미 있음."], s, "이미 있음") == [FRIENDLY_PREFIX + "이미 있음."]

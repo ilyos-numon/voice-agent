@@ -393,3 +393,40 @@ def test_privacy_logs(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     assert "주차 돼요" not in caplog.text
     assert "환불" not in caplog.text
     assert "주차장" not in caplog.text
+
+
+SAMPLES = ROOT / "data" / "samples"
+
+
+def _sample_agent(rt: AgentRuntime, kind: str) -> Agent:
+    from app.agents.knowledge import chunk_text, parse_faq_csv
+
+    raw = (SAMPLES / f"fitness-center.{kind}").read_text(encoding="utf-8")
+    chunks = chunk_text(raw, 100_000)[0] if kind == "txt" else parse_faq_csv(raw, 300, 100_000)[0]
+    return rt.store.create("피트니스", AgentSettings(), tuple(chunks))
+
+
+def test_fitness_text_cancel_sentence_first(tmp_path: Path) -> None:
+    rt = _rt(tmp_path)
+    meta, sents, _ = _split(list(iter_turn(rt, _sample_agent(rt, "txt"), text="PT 당일 취소하면 어떻게 돼요?")))
+    assert meta.answer_kind == "grounded"
+    assert meta.candidates[0].chunk.title == "개인 트레이닝"
+    assert "당일 취소하면 1회가 차감됩니다" in sents[0].text
+    assert sents[0].supported is True
+
+
+def test_fitness_csv_pool_is_single_unknown(tmp_path: Path) -> None:
+    rt = _rt(tmp_path)
+    meta, sents, _ = _split(list(iter_turn(rt, _sample_agent(rt, "csv"), text="수영장 있어요?")))
+    assert meta.answer_kind == "unknown"
+    assert [s.text for s in sents] == [UNKNOWN_TEXT]
+
+
+def test_summary_first_tts_matches_final_prefix_rule(tmp_path: Path) -> None:
+    tts = SpyTTS()
+    llm = FakeLLM(["요금은 별도입니다.", "주차는 2시간 무료입니다."], tts)
+    rt = _rt(tmp_path, tts=tts, factory=Factory(llm))
+    _, sents, done = _split(list(iter_turn(rt, _agent(rt, summary=True), text=Q_PARK)))
+    assert done.summary_used is True
+    assert sents[0].text == "요금은 별도입니다."
+    assert tts.texts == [s.text for s in sents]
