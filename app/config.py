@@ -29,6 +29,30 @@ class Settings(BaseSettings):
     turn_queue_max: int = 8
     scorecard_queue_max: int = 4
     presets_dir: Path = Path("data/presets")
+    demo_mode: bool = False
+    demo_contact: str = ""
+    demo_daily_turns: int = 10
+    demo_daily_audio_seconds: int = 200
+    demo_daily_agents: int = 2
+    demo_daily_scorecards: int = 2
+    demo_global_daily_turns: int = 500
+    demo_global_daily_audio_seconds: int = 2000
+    demo_global_daily_agents: int = 100
+    demo_global_daily_scorecards: int = 30
+    demo_rate_per_minute: int = 30
+    demo_max_json_bytes: int = 524288
+    demo_max_audio_bytes: int = 2097152
+    demo_max_audio_seconds_per_turn: int = 20
+    demo_trusted_proxy_hops: int = 0
+    demo_frame_ancestors: str = "'self'"
+    demo_bot_guard: bool = True
+    demo_token_secret: str = ""
+    demo_token_ttl_s: int = 1800
+    demo_abuse_threshold: int = 10
+    demo_abuse_window_s: int = 300
+    demo_block_steps: str = "600,3600,86400"
+    demo_llm_daily_calls: int = 500
+    agent_summary_default: bool = False
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

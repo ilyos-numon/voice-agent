@@ -1,0 +1,165 @@
+name: ci
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+env:
+  UV_FROZEN: "1"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - run: uv sync --extra dev
+      - run: uv run ruff check app tests scripts
+      - run: uv run mypy app
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - run: uv sync --extra dev --extra stt --extra tts
+      - run: uv run pytest tests/unit -q
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      SHOT_DIR: e2e-screenshots
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - run: uv sync --extra dev
+      - run: uv run playwright install --with-deps chromium
+
+      - name: Start stub server
+        run: |
+          nohup uv run uvicorn app.main:app --host localhost --port 8765 > server-stub.log 2>&1 &
+          echo $! > server.pid
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8765/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::stub server did not become healthy"
+          cat server-stub.log
+          exit 1
+      - name: Stub E2E
+        run: >-
+          uv run pytest tests/e2e -q
+          --ignore=tests/e2e/test_tts_real.py
+          --ignore=tests/e2e/test_stt_real.py
+          --ignore=tests/e2e/test_faq_bm25.py
+          --ignore=tests/e2e/test_stream_real.py
+          --ignore=tests/e2e/test_bench_audio_real.py
+          --ignore=tests/e2e/test_colloquial_ask.py
+          --ignore=tests/e2e/test_agent_builder_real.py
+          --ignore=tests/e2e/test_studio_voice_real.py
+      - name: Stop stub server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill "$(cat server.pid)" 2>/dev/null || true; rm -f server.pid; fi
+          pkill -f "uvicorn app.main:app" || true
+          for _ in $(seq 1 30); do
+            if ! curl -s -o /dev/null http://localhost:8765/health; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::stub server still running"
+          exit 1
+
+      - name: Start demo server
+        run: |
+          DEMO_MODE=1 DEMO_CONTACT=demo@example.com DEMO_DAILY_TURNS=3 DEMO_DAILY_AGENTS=2 DEMO_RATE_PER_MINUTE=600 DEMO_ABUSE_THRESHOLD=10 LLM_BACKEND=stub nohup uv run uvicorn app.main:app --host localhost --port 8765 --no-proxy-headers > server-demo.log 2>&1 &
+          echo $! > server.pid
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8765/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::demo server did not become healthy"
+          cat server-demo.log
+          exit 1
+      - name: Demo E2E
+        run: ILLY_SHOT_DIR="$SHOT_DIR" uv run pytest tests/e2e/test_demo_mode.py -q -rs -k "not live"
+      - name: Stop demo server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill "$(cat server.pid)" 2>/dev/null || true; rm -f server.pid; fi
+          pkill -f "uvicorn app.main:app" || true
+
+      - name: Server logs
+        if: failure()
+        run: tail -n 200 server-stub.log server-demo.log 2>/dev/null || true
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-screenshots
+          path: |
+            e2e-screenshots/
+            tests/e2e/screenshots/
+          if-no-files-found: ignore
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: bash scripts/ci_hygiene.sh
+
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - run: uv export --frozen --no-dev --extra stt --extra tts --no-emit-project -o req.txt
+      - run: uvx pip-audit --strict --disable-pip --no-deps -r req.txt
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build image
+        run: docker build --build-arg WARM_MODELS=0 -t voice-agent:ci .
+      - name: Run container
+        run: >-
+          docker run -d --name va -p 8765:8765
+          -e STT_BACKEND=stub -e TTS_BACKEND=stub -e LLM_BACKEND=stub
+          -e RETRIEVER_BACKEND=keyword -e FAQ_PATH=data/faq/sample_faq.json
+          voice-agent:ci
+      - name: Smoke checks
+        run: |
+          ok=0
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8765/health >/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          if [ "$ok" -ne 1 ]; then echo "::error::container not healthy"; docker logs va; exit 1; fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8765/health)
+          [ "$code" = "200" ] || { echo "::error::/health returned $code"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8765/docs)
+          [ "$code" = "404" ] || { echo "::error::/docs returned $code"; exit 1; }
+          uid=$(docker exec va id -u)
+          [ "$uid" != "0" ] || { echo "::error::container runs as root"; exit 1; }
+          if curl -sI http://localhost:8765/health | grep -qi '^server:'; then
+            echo "::error::server header present"; exit 1
+          fi
+          echo "health=200 docs=404 uid=$uid server-header=none"
+      - name: Container logs
+        if: always()
+        run: docker logs va 2>&1 | tail -n 100 || true

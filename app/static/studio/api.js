@@ -72,27 +72,72 @@
     return typeof Blob !== "undefined" && body instanceof Blob;
   }
 
+  // ---------- demo token ----------
+  // Cached Promise of the token from GET /api/demo (null when demo mode is off).
+  var DEMO_TOKEN_HEADER = "X-Demo-Token";
+  var demoTokenPromise = null;
+
+  function demoToken() {
+    if (!demoTokenPromise) {
+      var p = fetch("/api/demo", { method: "GET", headers: { "Accept": "application/json" } })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (body) {
+          return (body && typeof body.token === "string" && body.token) ? body.token : null;
+        })
+        .catch(function () {
+          if (demoTokenPromise === p) { demoTokenPromise = null; }
+          return null;
+        });
+      demoTokenPromise = p;
+    }
+    return demoTokenPromise;
+  }
+
+  async function headersWithToken(headers) {
+    var out = {};
+    if (headers) {
+      Object.keys(headers).forEach(function (k) { out[k] = headers[k]; });
+    }
+    var token = await demoToken();
+    if (typeof token === "string" && token) { out[DEMO_TOKEN_HEADER] = token; }
+    return out;
+  }
+
+  function isTokenRequired(status, data) {
+    var d = data && data.detail;
+    return status === 403 && !!d && typeof d === "object" && d.code === "demo_token_required";
+  }
+
   async function request(method, path, body) {
-    var opt = { method: method, headers: {} };
+    var baseHeaders = {};
+    var payload;
     if (body !== undefined && body !== null) {
       if (isBlob(body)) {
-        opt.body = body;
+        payload = body;
       } else {
-        opt.headers["Content-Type"] = "application/json";
-        opt.body = JSON.stringify(body);
+        baseHeaders["Content-Type"] = "application/json";
+        payload = JSON.stringify(body);
       }
     }
-    var res;
-    try {
-      res = await fetch(path, opt);
-    } catch (e) {
-      return { ok: false, status: 0, data: null, error: networkError() };
+    for (var attempt = 0; ; attempt++) {
+      var opt = { method: method, headers: await headersWithToken(baseHeaders) };
+      if (payload !== undefined) { opt.body = payload; }
+      var res;
+      try {
+        res = await fetch(path, opt);
+      } catch (e) {
+        return { ok: false, status: 0, data: null, error: networkError() };
+      }
+      var data = await readJson(res);
+      if (res.ok) {
+        return { ok: true, status: res.status, data: data, error: null };
+      }
+      if (attempt === 0 && isTokenRequired(res.status, data)) {
+        demoTokenPromise = null;
+        continue;
+      }
+      return { ok: false, status: res.status, data: data, error: errorFromBody(data, res.status) };
     }
-    var data = await readJson(res);
-    if (res.ok) {
-      return { ok: true, status: res.status, data: data, error: null };
-    }
-    return { ok: false, status: res.status, data: data, error: errorFromBody(data, res.status) };
   }
 
   // ---------- SSE ----------
@@ -165,17 +210,25 @@
       if (typeof fn === "function") { fn(data); }
     }
     if (signal) { init.signal = signal; }
+    var baseHeaders = init.headers;
     var res;
-    try {
-      res = await fetch(path, init);
-    } catch (e) {
-      if (isAbort(e, signal)) { return; }
-      call("error", networkError());
-      return;
-    }
-    if (!res.ok) {
+    for (var attempt = 0; ; attempt++) {
+      init.headers = await headersWithToken(baseHeaders);
+      if (signal && signal.aborted) { return; }
+      try {
+        res = await fetch(path, init);
+      } catch (e) {
+        if (isAbort(e, signal)) { return; }
+        call("error", networkError());
+        return;
+      }
+      if (res.ok) { break; }
       var data = await readJson(res);
       if (signal && signal.aborted) { return; }
+      if (attempt === 0 && isTokenRequired(res.status, data)) {
+        demoTokenPromise = null;
+        continue;
+      }
       call("error", errorFromBody(data, res.status));
       return;
     }

@@ -8,7 +8,7 @@ from app.main import create_app
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC = ROOT / "docs" / "api.md"
-PREFIXES = ("/api/agents", "/api/presets", "/api/options", "/api/scorecards")
+PREFIXES = ("/api/agents", "/api/presets", "/api/options", "/api/scorecards", "/api/demo")
 SSE_EVENTS = ("queue", "meta", "sentence", "done", "error")
 ERROR_CODES = (
     "knowledge_empty",
@@ -25,6 +25,13 @@ ERROR_CODES = (
     "unsupported_audio",
     "scorecard_running",
     "job_not_found",
+    "demo_quota_exceeded",
+    "demo_daily_cap",
+    "rate_limited",
+    "payload_too_large",
+    "demo_token_required",
+    "automated_client",
+    "temporarily_blocked",
 )
 
 
@@ -61,7 +68,7 @@ def doc() -> str:
 def test_builder_routes_found() -> None:
     routes = builder_routes()
     # 라우트 목록이 비면 아래 검사가 공허하게 통과하므로 개수를 고정한다
-    assert len(routes) == 13, routes
+    assert len(routes) == 14, routes
 
 
 def test_every_route_documented(doc: str) -> None:
@@ -74,7 +81,7 @@ def test_every_sse_event_documented(doc: str) -> None:
 
 
 def test_every_error_code_documented(doc: str) -> None:
-    assert len(ERROR_CODES) == 14
+    assert len(ERROR_CODES) == 21
     assert [c for c in ERROR_CODES if f"`{c}`" not in doc] == []
 
 

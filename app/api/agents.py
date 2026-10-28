@@ -2,6 +2,7 @@
 
 import base64
 import logging
+import math
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -66,7 +67,15 @@ from app.api.agent_schemas import (
     WarningOut,
 )
 from app.api.stream import SSE_HEADERS, format_sse
-from app.pipeline.audio import MAX_AUDIO_BYTES, AudioDecodeError, NoSpeechError, sniff_format
+from app.config import get_settings
+from app.demo.quota import Kind, charge_request, refund_request, request_bucket
+from app.pipeline.audio import (
+    MAX_AUDIO_BYTES,
+    AudioDecodeError,
+    NoSpeechError,
+    decode_audio,
+    sniff_format,
+)
 from app.pipeline.stubs import PassthroughSTT
 
 logger = logging.getLogger(__name__)
@@ -119,6 +128,10 @@ def _get_agent(rt: AgentRuntime, agent_id: str) -> Agent:
         _fail(404, "agent_not_found", "상담원을 찾을 수 없습니다.")
 
 
+def _base_settings() -> AgentSettings:
+    return AgentSettings(summary=get_settings().agent_summary_default)
+
+
 def _settings_out(s: AgentSettings) -> SettingsOut:
     return SettingsOut(**settings_to_dict(s))
 
@@ -154,6 +167,49 @@ def _busy() -> NoReturn:
     _fail(503, "busy", "지금 요청이 많습니다. 잠시 뒤 다시 시도해 주세요.")
 
 
+# ---- 데모 한도 (app.state.demo_quota 가 None 이면 아무것도 안 함) ----
+
+Charges = tuple[tuple[Kind, int], ...]
+
+
+def _charge(request: Request, charges: Charges) -> None:
+    done: list[tuple[Kind, int]] = []
+    try:
+        for kind, amount in charges:
+            charge_request(request, kind, amount)
+            done.append((kind, amount))
+    except HTTPException:
+        _refund(request, tuple(done))
+        raise
+
+
+def _refund(request: Request, charges: Charges) -> None:
+    for kind, amount in charges:
+        refund_request(request, kind, amount)
+
+
+def _audio_seconds(body: bytes) -> int | None:
+    try:
+        pcm = decode_audio(body)
+    except ImportError:
+        return math.ceil(len(body) / 32000)
+    except AudioDecodeError:
+        return None
+    return math.ceil(len(pcm) / 16000)
+
+
+async def _audio_charges(request: Request, body: bytes) -> Charges:
+    if request_bucket(request) is None:
+        return ()
+    seconds = await run_in_threadpool(_audio_seconds, body)
+    if seconds is None:
+        return (("turns", 1),)
+    max_seconds = int(getattr(request.app.state.demo_settings, "demo_max_audio_seconds_per_turn", 0))
+    if seconds > max_seconds:
+        _fail(413, "audio_too_large", "녹음이 너무 깁니다.")
+    return (("audio_seconds", seconds), ("turns", 1))
+
+
 # ---- 선택지·프리셋 ----
 
 
@@ -168,7 +224,7 @@ def get_options(request: Request) -> OptionsOut:
         voices=[
             VoiceOptionOut(value=v, label=lb, available=rt.voice_available(v)) for v, lb in VOICE_LABELS
         ],
-        defaults=_settings_out(AgentSettings()),
+        defaults=_settings_out(_base_settings()),
         limits=LimitsOut(
             max_text_chars=lim.max_text_chars,
             max_csv_rows=lim.max_csv_rows,
@@ -209,6 +265,16 @@ def get_presets(request: Request) -> PresetsOut:
 @agents_router.post("/api/agents", status_code=201, response_model=AgentOut)
 def create_agent(body: CreateAgentIn, request: Request) -> AgentOut:
     rt = _rt(request)
+    charges: Charges = (("agents", 1),)
+    _charge(request, charges)
+    try:
+        return _create_agent(rt, body)
+    except Exception:
+        _refund(request, charges)
+        raise
+
+
+def _create_agent(rt: AgentRuntime, body: CreateAgentIn) -> AgentOut:
     lim = rt.limits
     kn = body.knowledge
     try:
@@ -218,7 +284,7 @@ def create_agent(body: CreateAgentIn, request: Request) -> AgentOut:
             chunks, warnings = parse_faq_csv(kn.csv, lim.max_csv_rows, lim.max_csv_chars)
     except KnowledgeError as e:
         _fail(413 if e.code == "knowledge_too_large" else 400, e.code, e.message)
-    settings = merge_settings(AgentSettings(), body.settings.patch())
+    settings = merge_settings(_base_settings(), body.settings.patch())
     try:
         agent = rt.store.create(body.name, settings, tuple(chunks))
     except CapacityFull:
@@ -379,7 +445,13 @@ def _start_turn(
 def turn_stream(agent_id: str, body: TurnIn, request: Request) -> StreamingResponse:
     rt = _rt(request)
     agent = _get_agent(rt, agent_id)
-    return _start_turn(rt, agent, body.session_id, text=body.text)
+    charges: Charges = (("turns", 1),)
+    _charge(request, charges)
+    try:
+        return _start_turn(rt, agent, body.session_id, text=body.text)
+    except HTTPException:
+        _refund(request, charges)
+        raise
 
 
 @agents_router.post("/api/agents/{agent_id}/turns/audio-stream")
@@ -395,7 +467,13 @@ async def turn_audio_stream(
         _fail(413, "audio_too_large", "녹음이 너무 깁니다.")
     if sniff_format(body) is None:
         _fail(415, "unsupported_audio", "지원하지 않는 녹음 형식입니다.")
-    return _start_turn(rt, agent, session_id, audio=body)
+    charges = await _audio_charges(request, body)
+    _charge(request, charges)
+    try:
+        return _start_turn(rt, agent, session_id, audio=body)
+    except HTTPException:
+        _refund(request, charges)
+        raise
 
 
 # ---- A/B 비교 ----
@@ -405,14 +483,20 @@ async def turn_audio_stream(
 async def compare(agent_id: str, body: CompareIn, request: Request) -> CompareOut:
     rt = _rt(request)
     agent = _get_agent(rt, agent_id)
-    questions_left = _consume(rt, body.session_id, agent.agent_id)
+    charges: Charges = (("turns", 2),)
+    _charge(request, charges)
     try:
-        result: dict[str, Any] = await run_in_threadpool(
-            compare_settings, rt, agent, body.question, body.a.patch(), body.b.patch()
-        )
-    except Busy:
-        rt.sessions.refund(body.session_id)
-        _busy()
+        questions_left = _consume(rt, body.session_id, agent.agent_id)
+        try:
+            result: dict[str, Any] = await run_in_threadpool(
+                compare_settings, rt, agent, body.question, body.a.patch(), body.b.patch()
+            )
+        except Busy:
+            rt.sessions.refund(body.session_id)
+            _busy()
+    except HTTPException:
+        _refund(request, charges)
+        raise
     return CompareOut(**result, questions_left=questions_left)
 
 
@@ -436,14 +520,20 @@ def _job_out(job: Job) -> JobOut:
 def submit_scorecard(agent_id: str, request: Request, body: ScorecardIn | None = None) -> ScorecardAccepted:
     rt = _rt(request)
     jobs = _jobs(request)
-    agent = _get_agent(rt, agent_id)
-    req = body if body is not None else ScorecardIn()
+    charges: Charges = (("scorecards", 1),)
+    _charge(request, charges)
     try:
-        job = jobs.submit(agent, req.n, req.voice)
-    except JobRunning as e:
-        _fail(409, "scorecard_running", "이 상담원의 성적표를 이미 만들고 있습니다.", job_id=e.job_id)
-    except JobBusy:
-        _busy()
+        agent = _get_agent(rt, agent_id)
+        req = body if body is not None else ScorecardIn()
+        try:
+            job = jobs.submit(agent, req.n, req.voice)
+        except JobRunning as e:
+            _fail(409, "scorecard_running", "이 상담원의 성적표를 이미 만들고 있습니다.", job_id=e.job_id)
+        except JobBusy:
+            _busy()
+    except HTTPException:
+        _refund(request, charges)
+        raise
     return ScorecardAccepted(job_id=job.job_id, status=job.status, position=jobs.position(job.job_id))
 
 

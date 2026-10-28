@@ -44,7 +44,7 @@ def _chunks(base: Path, source: Any) -> tuple[Chunk, ...]:
     raise ValueError(f"{base}: 알 수 없는 source.kind입니다: {kind}")
 
 
-def _load_one(base: Path, clock: Callable[[], float]) -> tuple[int, Preset]:
+def _load_one(base: Path, clock: Callable[[], float], summary_default: bool) -> tuple[int, Preset]:
     raw = json.loads((base / PRESET_FILE).read_text(encoding="utf-8"))
     missing = [k for k in _KEYS if k not in raw]
     if missing:
@@ -59,7 +59,7 @@ def _load_one(base: Path, clock: Callable[[], float]) -> tuple[int, Preset]:
         agent_id=f"preset-{preset_id}",
         name=str(raw["name"]),
         preset_id=preset_id,
-        settings=merge_settings(AgentSettings(), raw["settings"]),
+        settings=merge_settings(AgentSettings(summary=summary_default), raw["settings"]),
         chunks=_chunks(base, raw["source"]),
         created_at=clock(),
         expires_at=None,
@@ -74,9 +74,11 @@ def _load_one(base: Path, clock: Callable[[], float]) -> tuple[int, Preset]:
     return raw["order"], preset
 
 
-def load_presets(presets_dir: Path, clock: Callable[[], float] = time.time) -> list[Preset]:
+def load_presets(
+    presets_dir: Path, clock: Callable[[], float] = time.time, *, summary_default: bool = False
+) -> list[Preset]:
     loaded = [
-        _load_one(d, clock) for d in sorted(presets_dir.iterdir()) if (d / PRESET_FILE).is_file()
+        _load_one(d, clock, summary_default) for d in sorted(presets_dir.iterdir()) if (d / PRESET_FILE).is_file()
     ]
     loaded.sort(key=lambda t: t[0])
     return [p for _, p in loaded]

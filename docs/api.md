@@ -28,6 +28,7 @@ http://localhost:8765
 - 시간 길이(`*_ms`)는 밀리초, 소수 1자리로 반올림된 `float`.
 - 검색 후보 점수(`score`)는 소수 2자리. 근거 겹침(`overlap`)은 0~1.
 - id 형식: 상담원 `ag_` + 12자 16진수(프리셋은 `preset-<preset_id>`), 세션 `s_…`, 턴 `t_…`, 성적표 작업 `sc_…`. 지식 조각 id는 텍스트 입력이면 `c-001`, CSV 입력이면 `q-001`부터.
+- 데모 모드(`DEMO_MODE=1`, 공개 데모 서버)에서 비용이 드는 엔드포인트 5개(`POST /api/agents`, `…/turns/stream`, `…/turns/audio-stream`, `…/compare`, `…/scorecards`)는 `X-Demo-Token` 헤더가 필요하다. 값은 `GET /api/demo`(5.14)의 `token`이다. 403 `demo_token_required`가 오면 토큰을 새로 받아 **1회만** 다시 보낸다. 데모 모드가 아니면 `token`이 `null`이고 헤더를 붙이지 않는다.
 
 ## 2. 오류 형식
 
@@ -39,6 +40,7 @@ http://localhost:8765
 
 - `code`는 기계용(분기에 쓴다), `message`는 사용자에게 그대로 보여 줘도 되는 한국어 문장.
 - `409 scorecard_running`만 `job_id`가 하나 더 붙는다. 이미 돌고 있는 작업의 id다.
+- 데모 모드의 `demo_quota_exceeded`·`demo_daily_cap`에는 `kind`·`reset_at`, `temporarily_blocked`에는 `retry_after`가 더 붙는다(2.3).
 
 ```json
 {"detail": {"code": "scorecard_running", "message": "이 상담원의 성적표를 이미 만들고 있습니다.", "job_id": "sc_e073c84b0a00"}}
@@ -62,7 +64,7 @@ http://localhost:8765
 - `POST …/scorecards`의 `n`이 10..30 밖
 - `POST …/turns/audio-stream`에 `session_id` 쿼리가 없음
 
-### 2.3 오류 code 전체 (14개)
+### 2.3 오류 code 전체 (21개)
 
 | HTTP | code | 언제 | 화면 처리 예 |
 |---|---|---|---|
@@ -76,10 +78,17 @@ http://localhost:8765
 | 429 | `question_limit` | 세션 질문 수를 다 씀 | 남은 질문 0 표시, 새 세션 안내 |
 | 503 | `busy` | 동시에 묻는 사람이 너무 많음(대기열 가득) / A·B 비교가 60초 넘게 기다림 / 성적표 대기열 가득 | "잠시 뒤 다시". 질문 수는 차감되지 않는다 |
 | 400 | `empty_audio` | 업로드한 녹음이 0바이트 | 다시 녹음 |
-| 413 | `audio_too_large` | 녹음이 10 MiB(10,485,760바이트) 초과 | 더 짧게 |
+| 413 | `audio_too_large` | 녹음이 10 MiB(10,485,760바이트) 초과. 데모 모드에서는 녹음 길이가 `DEMO_MAX_AUDIO_SECONDS_PER_TURN`(20초) 초과도 | 더 짧게 |
 | 415 | `unsupported_audio` | WAV·WebM·Ogg·MP4가 아님 | 브라우저 녹음 형식 확인 |
 | 409 | `scorecard_running` | 같은 상담원의 성적표가 이미 대기·진행 중 | 응답의 `job_id`로 그 작업을 폴링 |
 | 404 | `job_not_found` | 성적표 작업 id가 없거나 만료됨 | 다시 제출 |
+| 429 | `demo_quota_exceeded` | (데모 모드) 이 방문자의 오늘 한도를 다 씀. `kind`(`turns`·`audio_seconds`·`agents`·`scorecards`)와 `reset_at`(다음 날 00:00 UTC)이 더 붙는다 | `message` + `reset_at` 안내 |
+| 503 | `demo_daily_cap` | (데모 모드) 서버 전체의 오늘 사용량이 소진됨. `kind`·`reset_at`이 더 붙는다 | 내일 다시 |
+| 429 | `rate_limited` | (데모 모드) 1분 동안 요청이 너무 많음 | 잠시 뒤 다시 |
+| 413 | `payload_too_large` | (데모 모드) 요청 본문이 상한 초과(JSON 512 KiB, 녹음 2 MiB) | 내용을 줄인다 |
+| 403 | `demo_token_required` | (데모 모드) `X-Demo-Token`이 없거나 만료·불일치 | `GET /api/demo`로 토큰을 새로 받아 1회 재시도 |
+| 403 | `automated_client` | (데모 모드) 스크립트 도구(curl 등)로 보인 비용 요청 | 브라우저에서 이용 |
+| 429 | `temporarily_blocked` | (데모 모드) 비정상 요청이 반복돼 잠시 차단됨. 헤더 `Retry-After`와 `retry_after`(초)가 붙는다 | 나중에 다시 |
 
 스트림 안에서 나는 오류(`no_speech`, `audio_decode_failed`, `internal`)는 HTTP 오류가 아니라 SSE `error` 이벤트로 온다(5절).
 
@@ -119,6 +128,59 @@ http://localhost:8765
 | 녹음 크기 | 10 MiB | - |
 | 성적표 질문 수 `n` | 10..30 (기본 30) | - |
 
+요약 기본값:
+
+| 환경변수 | 기본값 | 뜻 | 화면에서 아는 법 |
+|---|---|---|---|
+| `AGENT_SUMMARY_DEFAULT` | false | 새 상담원과 프리셋의 `summary` 기본값. 요청·프리셋에 `summary`가 명시되면 그 값이 이긴다 | `defaults.summary`, 프리셋 상담원 `settings.summary` |
+
+### 데모 모드 상한
+
+공개 데모 서버(`DEMO_MODE=1`)에서만 쓰인다. 꺼져 있으면(기본) 이 표의 값은 아무 영향이 없고 응답도 같다.
+방문자 한도는 IP로 만든 익명 버킷(원 IP는 저장하지 않음) 기준이고 매일 00:00 UTC에 비워진다. 잔량은 `GET /api/demo`(5.14)의 `remaining`.
+
+| 환경변수 | 기본값 | 뜻 |
+|---|---|---|
+| `DEMO_MODE` | false | 데모 모드 켜기 |
+| `DEMO_CONTACT` | `""` | 배너에 보일 연락처 (`GET /api/demo`의 `contact`) |
+| `DEMO_DAILY_TURNS` | 10 | 방문자당 하루 질문 수 (글자·음성 턴 1, A/B 비교 1회 = 2) |
+| `DEMO_DAILY_AUDIO_SECONDS` | 200 | 방문자당 하루 녹음 초 |
+| `DEMO_DAILY_AGENTS` | 2 | 방문자당 하루 상담원 만들기 수 |
+| `DEMO_DAILY_SCORECARDS` | 2 | 방문자당 하루 성적표 수 |
+| `DEMO_GLOBAL_DAILY_TURNS` | 500 | 서버 전체 하루 질문 수 (넘으면 `demo_daily_cap`) |
+| `DEMO_GLOBAL_DAILY_AUDIO_SECONDS` | 2000 | 서버 전체 하루 녹음 초 |
+| `DEMO_GLOBAL_DAILY_AGENTS` | 100 | 서버 전체 하루 상담원 만들기 수 |
+| `DEMO_GLOBAL_DAILY_SCORECARDS` | 30 | 서버 전체 하루 성적표 수 |
+| `DEMO_RATE_PER_MINUTE` | 30 | 방문자당 1분 `/api/` 요청 수 (넘으면 `rate_limited`) |
+| `DEMO_MAX_JSON_BYTES` | 524288 | JSON 본문 상한 512 KiB (넘으면 `payload_too_large`) |
+| `DEMO_MAX_AUDIO_BYTES` | 2097152 | 녹음 본문 상한 2 MiB |
+| `DEMO_MAX_AUDIO_SECONDS_PER_TURN` | 20 | 녹음 1회 길이 상한 초 (넘으면 413 `audio_too_large`, 차감 없음) |
+| `DEMO_TRUSTED_PROXY_HOPS` | 0 | 앞단 프록시 수. 0이면 접속 주소, N이면 `X-Forwarded-For` 오른쪽에서 N번째 |
+| `DEMO_FRAME_ANCESTORS` | `'self'` | 이 화면을 iframe으로 넣을 수 있는 출처 (CSP `frame-ancestors`) |
+| `DEMO_BOT_GUARD` | true | 봇 대응(아래 3종) 켜기 |
+| `DEMO_TOKEN_SECRET` | `""` | 요청 토큰 서명 키. 비면 서버가 켜질 때마다 새로 만든다 |
+| `DEMO_TOKEN_TTL_S` | 1800 | 요청 토큰 유효 초 (`token_expires_in`) |
+| `DEMO_ABUSE_THRESHOLD` | 10 | 이 횟수만큼 위반(403·413·429)하면 차단 |
+| `DEMO_ABUSE_WINDOW_S` | 300 | 위반을 세는 창 초 |
+| `DEMO_BLOCK_STEPS` | `600,3600,86400` | 차단할 때마다 늘어나는 차단 초 |
+| `DEMO_LLM_DAILY_CALLS` | 500 | 서버 전체 하루 외부 LLM 호출 수. 넘으면 요약 대신 규칙 문장으로 답한다 |
+
+기존 상한과의 관계: 데모 한도를 **먼저** 검사해 차감하고, 그 뒤 기존 상한(`session_not_found`·`question_limit`·`busy`·`capacity_full`·지식 오류 등)에 걸려 거절되면 차감한 만큼 되돌린다. 녹음 초는 녹음 형식 검사(400/413/415)를 통과한 뒤 계산한다. 차감 단위:
+
+| 엔드포인트 | 차감 | 되돌리는 경우 |
+|---|---|---|
+| `POST /api/agents` | `agents` 1 | 지식 오류(400/413)·`capacity_full`·그 밖의 실패 |
+| `…/turns/stream` | `turns` 1 | `session_not_found`·`question_limit`·`busy` |
+| `…/turns/audio-stream` | `audio_seconds` 녹음 초(올림) + `turns` 1 | 위와 같음. 길이 초과 413이면 차감하지 않음 |
+| `…/compare` | `turns` 2 | `session_not_found`·`question_limit`·`busy` |
+| `…/scorecards` | `scorecards` 1 | `agent_not_found`·`scorecard_running`·`busy` |
+
+봇 대응 3종 (`DEMO_BOT_GUARD=true`일 때, `/api/` 요청만):
+
+1. 요청 토큰: 비용 엔드포인트 5개는 `X-Demo-Token`(`GET /api/demo`의 `token`)이 맞아야 한다. 아니면 403 `demo_token_required`.
+2. 스크립트 차단: 비용 요청의 `User-Agent`가 비었거나 curl·wget·python-requests 같은 도구면 403 `automated_client`.
+3. 반복 위반 차단: 위반이 `DEMO_ABUSE_WINDOW_S` 안에 `DEMO_ABUSE_THRESHOLD`번 쌓이면 `DEMO_BLOCK_STEPS` 순서로 차단하고 429 `temporarily_blocked`(`Retry-After`)를 돌려준다.
+
 ## 5. 엔드포인트
 
 전체 목록:
@@ -138,6 +200,7 @@ http://localhost:8765
 | `POST /api/agents/{agent_id}/compare` | 같은 질문을 두 설정으로 비교 |
 | `POST /api/agents/{agent_id}/scorecards` | 성적표 만들기 시작 |
 | `GET /api/scorecards/{job_id}` | 성적표 진행·결과 |
+| `GET /api/demo` | 데모 안내·오늘 남은 한도·요청 토큰 |
 
 ### 5.0 공통 객체
 
@@ -530,6 +593,36 @@ await fetch(`/api/agents/${agentId}/turns/audio-stream?session_id=${sid}`, {meth
 ```
 
 작업 결과는 24시간 또는 상담원이 지워질 때까지 남는다.
+
+### 5.14 `GET /api/demo`
+
+데모 배너와 요청 토큰. 한도를 차감하지 않는다(데모 모드의 분당 요청 수에는 포함). 데모 모드가 아니어도 200이고, 그때는 `demo_mode: false`에 한도·토큰 필드가 `null`이다.
+
+응답 200 (`DemoOut`, 데모 모드):
+
+```json
+{"demo_mode": true, "contact": "you@example.com",
+ "notice": "데모 버전입니다. 기능과 사용량이 제한됩니다. 완성된 기술이 필요하면 개발자에게 문의해 주세요.",
+ "privacy_notice": "질문 문장은 답 요약을 위해 외부 AI API로 전송됩니다(음성은 전송하지 않습니다).",
+ "limits": {"turns": 10, "audio_seconds": 200, "agents": 2, "scorecards": 2},
+ "remaining": {"turns": 9, "audio_seconds": 200, "agents": 2, "scorecards": 2},
+ "reset_at": "2026-10-29T00:00:00Z", "bucket": "3f9c2a7d10b4e865", "token": "1761620000.0c1d…", "token_expires_in": 1800}
+```
+
+| 필드 | 뜻 |
+|---|---|
+| `demo_mode` | 데모 모드 여부 |
+| `contact` | 연락처 (`DEMO_CONTACT`), 비었으면 `null` |
+| `notice` | 배너 문구 (고정) |
+| `privacy_notice` | 개인정보 안내 문구 (데모 모드가 아니어도 같은 문자열) |
+| `limits` | 방문자 하루 한도. 키 `turns`·`audio_seconds`·`agents`·`scorecards`. 데모 아니면 `null` |
+| `remaining` | 오늘 남은 양 (키는 `limits`와 같음). 데모 아니면 `null` |
+| `reset_at` | 한도가 다시 차는 시각 (다음 날 00:00 UTC). 데모 아니면 `null` |
+| `bucket` | 익명 방문자 버킷 id (16자 16진수). 데모 아니면 `null` |
+| `token` | `X-Demo-Token`에 넣을 값. 봇 대응이 꺼져 있거나 데모가 아니면 `null`(헤더를 붙이지 않는다) |
+| `token_expires_in` | 토큰 유효 초. `token`이 `null`이면 `null` |
+
+서버 전체 사용량·차단 여부는 이 응답에 넣지 않는다.
 
 ## 6. SSE 이벤트 (턴 스트림)
 

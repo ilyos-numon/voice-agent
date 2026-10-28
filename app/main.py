@@ -12,6 +12,8 @@ from app.api.agents import agents_router
 from app.api.routes import VERSION, router
 from app.api.stream import stream_router
 from app.config import get_settings
+from app.demo.install import install_demo
+from app.demo.llm_budget import apply_llm_budget
 from app.pipeline.runner import build_pipeline
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -24,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     pipeline = app.state.pipeline
     app.state.agents = build_agent_runtime(settings, pipeline.stt, pipeline.tts)
+    apply_llm_budget(app.state.agents, settings)
     app.state.scorecard_jobs = ScorecardJobs(app.state.agents, max_waiting=settings.scorecard_queue_max)
     yield
     app.state.scorecard_jobs.shutdown()
@@ -35,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(stream_router)
     app.include_router(agents_router)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    install_demo(app, get_settings())
 
     @app.get("/", include_in_schema=False)
     def home() -> RedirectResponse:
