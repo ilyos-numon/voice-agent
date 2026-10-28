@@ -51,6 +51,22 @@ def test_expired_token_rejected() -> None:
     assert s.verify("b", token) is False
 
 
+_EXP = str(int(T0) + 100)  # 만료·미래 검사를 통과하는 exp — 서명 형식 검사만 남긴다
+
+
+@pytest.mark.parametrize("sig", [
+    "\u00e9" * 32,  # 비ASCII
+    "0" * 31,
+    "0" * 33,
+    "0123456789ABCDEF0123456789abcdef",  # 대문자
+    "0123456789abcdeg0123456789abcdef",  # 비hex
+    "\u0660" * 32,  # 비ASCII 숫자
+])
+def test_malformed_signature_rejected(sig: str) -> None:
+    s = TokenSigner("secret", 1800, clock=FakeClock(T0))
+    assert s.verify("b", f"{_EXP}.{sig}") is False
+
+
 def test_far_future_exp_rejected() -> None:
     clock = FakeClock(T0)
     future = TokenSigner("secret", 1800, clock=FakeClock(T0 + 1000))
