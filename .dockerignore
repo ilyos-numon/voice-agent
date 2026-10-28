@@ -9,3 +9,10 @@ __pycache__
 *.pyc
 .env
 .env.*
+bench
+design
+deploy
+dist
+logs
+screenshots
+openspec
