@@ -66,6 +66,7 @@ from app.api.agent_schemas import (
     WarningOut,
 )
 from app.api.stream import SSE_HEADERS, format_sse
+from app.config import get_settings
 from app.pipeline.audio import MAX_AUDIO_BYTES, AudioDecodeError, NoSpeechError, sniff_format
 from app.pipeline.stubs import PassthroughSTT
 
@@ -119,6 +120,10 @@ def _get_agent(rt: AgentRuntime, agent_id: str) -> Agent:
         _fail(404, "agent_not_found", "상담원을 찾을 수 없습니다.")
 
 
+def _base_settings() -> AgentSettings:
+    return AgentSettings(summary=get_settings().agent_summary_default)
+
+
 def _settings_out(s: AgentSettings) -> SettingsOut:
     return SettingsOut(**settings_to_dict(s))
 
@@ -168,7 +173,7 @@ def get_options(request: Request) -> OptionsOut:
         voices=[
             VoiceOptionOut(value=v, label=lb, available=rt.voice_available(v)) for v, lb in VOICE_LABELS
         ],
-        defaults=_settings_out(AgentSettings()),
+        defaults=_settings_out(_base_settings()),
         limits=LimitsOut(
             max_text_chars=lim.max_text_chars,
             max_csv_rows=lim.max_csv_rows,
@@ -218,7 +223,7 @@ def create_agent(body: CreateAgentIn, request: Request) -> AgentOut:
             chunks, warnings = parse_faq_csv(kn.csv, lim.max_csv_rows, lim.max_csv_chars)
     except KnowledgeError as e:
         _fail(413 if e.code == "knowledge_too_large" else 400, e.code, e.message)
-    settings = merge_settings(AgentSettings(), body.settings.patch())
+    settings = merge_settings(_base_settings(), body.settings.patch())
     try:
         agent = rt.store.create(body.name, settings, tuple(chunks))
     except CapacityFull:

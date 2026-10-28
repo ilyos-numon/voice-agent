@@ -117,7 +117,7 @@ def build_agent_runtime(
     clock: Callable[[], float] = time.time,
 ) -> AgentRuntime:
     ttl_s = settings.agent_ttl_hours * 3600.0
-    presets = load_presets(settings.presets_dir, clock=clock)
+    presets = load_presets(settings.presets_dir, clock=clock, summary_default=settings.agent_summary_default)
     store = AgentStore(ttl_s=ttl_s, max_agents=settings.max_agents, clock=clock)
     for preset in presets:
         store.add_preset(preset.agent)
