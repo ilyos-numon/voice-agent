@@ -131,11 +131,14 @@ def test_is_exposed_rules() -> None:
 
 # ---- security headers ----
 
-def _assert_headers(r: Any) -> None:
-    csp = r.headers["content-security-policy"]
-    for part in ("default-src 'self'", "script-src 'self'", "object-src 'none'",
-                 "base-uri 'none'", "frame-ancestors 'self'", "style-src 'self' 'unsafe-inline'"):
-        assert part in csp
+def _assert_headers(r: Any, csp_expected: bool = True) -> None:
+    if csp_expected:
+        csp = r.headers["content-security-policy"]
+        for part in ("default-src 'self'", "script-src 'self'", "object-src 'none'",
+                     "base-uri 'none'", "frame-ancestors 'self'", "style-src 'self' 'unsafe-inline'"):
+            assert part in csp
+    else:
+        assert "content-security-policy" not in r.headers
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["referrer-policy"] == "no-referrer"
     pp = r.headers["permissions-policy"]
@@ -176,7 +179,7 @@ def test_acao_stripped_when_demo_off() -> None:
     c = client(make_app(demo_mode=False))
     r = c.get("/cors")
     assert r.status_code == 200
-    _assert_headers(r)
+    _assert_headers(r, csp_expected=False)
 
 
 # ---- body and rate ----
@@ -444,4 +447,25 @@ def test_demo_off_no_restrictions() -> None:
     big = c.post("/api/agents", content=b"x" * (600 * 1024))
     assert big.status_code == 200 and big.json()["size"] == 600 * 1024
     assert all(c.get("/api/options").status_code == 200 for _ in range(40))
-    _assert_headers(c.get("/studio"))
+    _assert_headers(c.get("/studio"), csp_expected=False)
+
+
+def test_demo_off_no_csp_other_headers_kept() -> None:
+    app = make_app(demo_mode=False)
+
+    @app.get("/static/archive/kiosk/index.html")
+    def kiosk() -> dict[str, str]:
+        return {"page": "kiosk"}
+
+    c = client(app)
+    r = c.get("/static/archive/kiosk/index.html")
+    assert r.status_code == 200
+    _assert_headers(r, csp_expected=False)
+    https = client(make_app(demo_mode=False), base_url="https://testserver")
+    h = https.get("/health")
+    assert "content-security-policy" not in h.headers
+    assert h.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_demo_on_has_csp_on_kiosk_404() -> None:
+    _assert_headers(client(make_app()).get("/static/archive/kiosk/index.html"))

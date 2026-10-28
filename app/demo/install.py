@@ -62,5 +62,8 @@ def install_demo(app: FastAPI, settings: Settings) -> None:
         app.state.demo_signer = None
         app.state.demo_abuse = None
     app.add_middleware(
-        SecurityHeadersMiddleware, frame_ancestors=settings.demo_frame_ancestors, trusted_hops=hops
+        SecurityHeadersMiddleware,
+        frame_ancestors=settings.demo_frame_ancestors,
+        trusted_hops=hops,
+        csp=settings.demo_mode,
     )

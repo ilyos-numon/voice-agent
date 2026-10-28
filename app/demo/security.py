@@ -113,11 +113,13 @@ def _bucket(scope: Scope, quota: DemoQuota, trusted_hops: int) -> str:
 
 
 class SecurityHeadersMiddleware:
-    """모든 응답에 보안 헤더를 붙이고 `Access-Control-Allow-Origin` 을 지운다."""
+    """모든 응답에 보안 헤더를 붙이고 `Access-Control-Allow-Origin` 을 지운다. CSP 는 `csp=True` 일 때만."""
 
-    def __init__(self, app: ASGIApp, frame_ancestors: str = "'self'", trusted_hops: int = 0) -> None:
+    def __init__(
+        self, app: ASGIApp, frame_ancestors: str = "'self'", trusted_hops: int = 0, csp: bool = True
+    ) -> None:
         self.app = app
-        self.csp = CSP_TEMPLATE.format(frame_ancestors=frame_ancestors)
+        self.csp = CSP_TEMPLATE.format(frame_ancestors=frame_ancestors) if csp else None
         self.trusted_hops = trusted_hops
 
     def _is_https(self, scope: Scope) -> bool:
@@ -152,8 +154,9 @@ class SecurityHeadersMiddleware:
             if message["type"] == "http.response.start":
                 started = True
                 headers = [(k, v) for k, v in message.get("headers") or [] if bytes(k).lower() not in drop]
+                if self.csp is not None:
+                    headers.append((b"content-security-policy", self.csp.encode("latin-1")))
                 headers += [
-                    (b"content-security-policy", self.csp.encode("latin-1")),
                     (b"x-content-type-options", b"nosniff"),
                     (b"referrer-policy", b"no-referrer"),
                     (b"permissions-policy", PERMISSIONS_POLICY.encode("latin-1")),
