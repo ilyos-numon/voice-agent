@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
@@ -20,10 +21,14 @@ CSP_TEMPLATE = (
 PERMISSIONS_POLICY = "microphone=(self), camera=(), geolocation=()"
 HSTS_VALUE = "max-age=31536000"
 
+log = logging.getLogger(__name__)
+_DIGITS_RE = re.compile(r"[0-9]+")
+
 MSG_RATE_LIMITED = "요청이 너무 잦습니다. 잠시 뒤 다시 시도해 주세요."
 MSG_PAYLOAD_TOO_LARGE = "보낸 내용이 너무 큽니다."
 MSG_TOKEN_REQUIRED = "페이지를 새로 고친 뒤 다시 시도해 주세요."
 MSG_AUTOMATED_CLIENT = "브라우저에서 이용해 주세요."
+MSG_INTERNAL_ERROR = "서버 오류가 발생했습니다."
 MSG_TEMPORARILY_BLOCKED = (
     "비정상적인 요청이 반복되어 잠시 이용이 제한되었습니다. 나중에 다시 시도해 주세요."
 )
@@ -140,8 +145,12 @@ class SecurityHeadersMiddleware:
             b"access-control-allow-origin",
         }
 
+        started = False
+
         async def wrapped(message: Message) -> None:
+            nonlocal started
             if message["type"] == "http.response.start":
+                started = True
                 headers = [(k, v) for k, v in message.get("headers") or [] if bytes(k).lower() not in drop]
                 headers += [
                     (b"content-security-policy", self.csp.encode("latin-1")),
@@ -155,7 +164,13 @@ class SecurityHeadersMiddleware:
                 message = {**message, "headers": headers}
             await send(message)
 
-        await self.app(scope, receive, wrapped)
+        try:
+            await self.app(scope, receive, wrapped)
+        except Exception as e:
+            if started:
+                raise
+            log.error("unhandled error: %s", type(e).__name__)
+            await _send_error(wrapped, 500, "internal_error", MSG_INTERNAL_ERROR)
 
 
 class ExposureGuardMiddleware:
@@ -269,7 +284,7 @@ class BodyLimitMiddleware:
             return
         limit = self._limit(scope.get("path", ""))
         declared = _header(scope, b"content-length")
-        if declared is not None and declared.strip().isdigit() and int(declared) > limit:
+        if declared is not None and _DIGITS_RE.fullmatch(declared.strip()) and int(declared) > limit:
             await _send_error(send, 413, "payload_too_large", MSG_PAYLOAD_TOO_LARGE)
             return
         buffered: list[Message] = []

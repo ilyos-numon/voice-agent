@@ -94,11 +94,12 @@ class DemoQuota:
     def bucket_for_scope(self, scope: Scope, trusted_hops: int) -> str:
         client = scope.get("client")
         host = client[0] if client else None
-        xff: str | None = None
-        for name, value in scope.get("headers") or []:
-            if name.lower() == b"x-forwarded-for":
-                xff = value.decode("latin-1")
-                break
+        lines = [
+            bytes(value).decode("latin-1")
+            for name, value in scope.get("headers") or []
+            if bytes(name).lower() == b"x-forwarded-for"
+        ]
+        xff = ",".join(lines) if lines else None
         return self.bucket(client_ip(host, xff, trusted_hops))
 
     def _roll_locked(self) -> None:

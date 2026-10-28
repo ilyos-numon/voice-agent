@@ -31,6 +31,7 @@ SCRIPT_UA: re.Pattern[str] = re.compile(
 MAX_BUCKETS = 10000
 _FUTURE_SLACK_S = 60
 _SIG_RE = re.compile(r"[0-9a-f]{32}")
+_EXP_RE = re.compile(r"[0-9]{1,12}")
 
 
 def is_cost_request(method: str, path: str) -> bool:
@@ -63,7 +64,7 @@ class TokenSigner:
         if not token:
             return False
         parts = token.split(".")
-        if len(parts) != 2 or not (parts[0].isascii() and parts[0].isdigit()) or not _SIG_RE.fullmatch(parts[1]):
+        if len(parts) != 2 or not _EXP_RE.fullmatch(parts[0]) or not _SIG_RE.fullmatch(parts[1]):
             return False
         exp = int(parts[0])
         now = self._clock()
