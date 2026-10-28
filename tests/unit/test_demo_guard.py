@@ -83,6 +83,12 @@ def test_malformed_token_rejected(token: str | None) -> None:
     assert s.verify("b", token) is False
 
 
+def test_huge_digit_exp_rejected_without_error() -> None:
+    s = TokenSigner("secret", 1800, clock=FakeClock(T0))
+    assert s.verify("b", "9" * 5000 + "." + "a" * 32) is False
+    assert s.verify("b", "1" * 13 + "." + "a" * 32) is False
+
+
 def test_tampered_signature_rejected() -> None:
     s = TokenSigner("secret", 1800, clock=FakeClock(T0))
     exp, sig = s.issue("b").split(".")

@@ -247,6 +247,41 @@ def test_body_limit_accumulates_multiple_chunks() -> None:
     assert sent[0]["status"] == 200 and reached == [b"a" * 40 + b"b" * 40]
 
 
+def test_non_ascii_content_length_no_error() -> None:
+    async def inner(scope: Any, receive: Any, send: Any) -> None:
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok"})
+
+    mw = BodyLimitMiddleware(inner, max_json_bytes=100, max_audio_bytes=1000)
+    msgs = [{"type": "http.request", "body": b"x" * 200, "more_body": False}]
+    sent: list[dict[str, Any]] = []
+
+    async def receive() -> dict[str, Any]:
+        return msgs.pop(0) if msgs else {"type": "http.disconnect"}
+
+    async def send(m: dict[str, Any]) -> None:
+        sent.append(m)
+
+    scope = {"type": "http", "method": "POST", "path": "/api/agents",
+             "headers": [(b"content-length", "\u00b2".encode("latin-1"))]}
+    asyncio.run(mw(scope, receive, send))
+    assert sent[0]["status"] == 413
+
+
+def test_unhandled_exception_500_has_security_headers() -> None:
+    app = make_app()
+
+    @app.get("/api/presets")
+    def boom() -> None:
+        raise RuntimeError("secret detail")
+
+    r = client(app).get("/api/presets")
+    assert r.status_code == 500
+    assert r.json() == {"detail": {"code": "internal_error", "message": "서버 오류가 발생했습니다."}}
+    assert "secret detail" not in r.text
+    _assert_headers(r)
+
+
 def test_rate_limit_sixth_request_429() -> None:
     app = make_app(demo_rate_per_minute=5)
     app.state.demo_quota = DemoQuota(

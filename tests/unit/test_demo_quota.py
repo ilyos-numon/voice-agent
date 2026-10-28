@@ -241,6 +241,20 @@ def test_bucket_for_scope_rightmost_trusted_hop() -> None:
     assert short == q.bucket("2001:db8:9::1")
 
 
+def test_bucket_for_scope_joins_multiple_xff_lines() -> None:
+    q = make()
+    scope = {
+        "type": "http",
+        "client": ("2001:db8:9::1", 1234),
+        "headers": [
+            (b"x-forwarded-for", b"2001:db8:1::5"),
+            (b"x-forwarded-for", b"2001:db8:3::5, 2001:db8:2::7"),
+        ],
+    }
+    assert q.bucket_for_scope(scope, 1) == q.bucket("2001:db8:2::7")
+    assert q.bucket_for_scope(scope, 3) == q.bucket("2001:db8:1::5")
+
+
 def test_rate_fixed_window() -> None:
     clock = FakeClock(float(60 * 1000))
     q = make(clock=clock, rate=5)
