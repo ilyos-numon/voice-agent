@@ -24,4 +24,4 @@ RUN uv sync --frozen --no-dev --extra stt --extra tts
 USER user
 RUN if [ "$WARM_MODELS" = "1" ]; then python scripts/warm_models.py; fi
 EXPOSE 8765
-CMD ["/srv/.venv/bin/uvicorn", "app.main:app", "--host", "::", "--port", "8765", "--no-server-header", "--no-access-log", "--no-proxy-headers"]
+CMD ["/srv/.venv/bin/uvicorn", "app.main:app", "--host", "", "--port", "8765", "--no-server-header", "--no-access-log", "--no-proxy-headers"]

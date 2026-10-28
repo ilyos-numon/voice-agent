@@ -135,6 +135,6 @@ HF 는 카드 없이, VM 운영 없이 두 음성 모델을 함께 올릴 수 �
 ## 9. 알려진 제약과 대비책
 
 - 로컬 Docker 미검증: 이 개발 머신은 Docker 이미지 pull 이 프록시에서 막혀 컨테이너를 로컬에서 돌려 보지 못했다. 컨테이너 검증은 GitHub Actions `ci` 의 `docker` 작업(빌드 `WARM_MODELS=0`, 스텁 환경으로 실행, `/health` 200·`/docs` 404·uid≠0·`server` 헤더 없음)과 실제 Space 배포로만 한다.
-- `::` 바인드 실패: 이미지는 `--host ::` 로 듣는다. 호스트가 IPv6 를 끈 환경이면 Space `Logs` 에 바인드 오류가 찍히고 `/health` 가 끝내 200 이 되지 않는다. 대비책: Dockerfile `CMD` 를 작은 실행기로 바꿔 `socket.socket(socket.AF_INET)` 을 `("", 8765)` 에 bind(= `socket.INADDR_ANY`, IP 리터럴 없음)한 뒤 `uvicorn.Server(config).run(sockets=[sock])` 로 넘긴다. 이 대비책은 지금 구현돼 있지 않다(Dockerfile 은 orchestrator 전용 파일).
+- 바인드 주소: 이미지는 `--host ""` 로 듣는다. uvicorn 은 `--host ::` 소켓을 IPv6 전용으로 열어 IPv4 연결(Docker 포트 포워딩·호스트 프록시)을 받지 못하므로, 빈 문자열로 IPv4·IPv6 모든 주소에 각각 바인드한다(IP 리터럴 없음). Space `Logs` 에 `Uvicorn running on http://:8765` 가 보이면 정상이다.
 - 배포가 20분 안에 `/health` 200 이 되지 않으면 `deploy-hf` 가 실패로 끝난다. Space `Logs` 탭에서 빌드 단계(모델 다운로드)인지 실행 단계(설정 오류)인지 본다.
 - 처리되지 않은 예외는 보안 헤더가 붙은 500 `internal_error` 로 바뀌고, 로그에는 예외 종류만 남는다(`docs/security.md` 2절).
