@@ -13,7 +13,10 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_NO_CACHE=1 PORT=8765 \
     STT_BACKEND=whisper \
     TTS_BACKEND=supertonic \
     RETRIEVER_BACKEND=bm25 \
-    FAQ_PATH=data/faq/faq.jsonl
+    FAQ_PATH=data/faq/faq.jsonl \
+    SUPERTONIC_INTRA_OP_THREADS=2 \
+    SUPERTONIC_INTER_OP_THREADS=1 \
+    OMP_NUM_THREADS=2
 WORKDIR /srv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --extra stt --extra tts --no-install-project

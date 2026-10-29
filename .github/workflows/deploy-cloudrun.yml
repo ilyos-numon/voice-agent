@@ -83,6 +83,7 @@ jobs:
             --allow-unauthenticated \
             --port 8765 \
             --cpu 2 \
+            --execution-environment gen2 \
             --memory 4Gi \
             --min-instances 0 \
             --max-instances 1 \
