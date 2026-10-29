@@ -183,7 +183,7 @@ GH_TOKEN=$(gh auth token -u <gh-user>) gh variable set GCP_RUNTIME_SA --body 'va
 - 러너 디스크: 모델이 이미지에 들어가 이미지가 크다. 워크플로가 빌드 전에 러너의 쓰지 않는 도구를 지워 공간을 만든다.
 - 처리되지 않은 예외는 보안 헤더가 붙은 500 `internal_error` 로 바뀌고, 로그에는 예외 종류만 남는다(`docs/security.md` 2절).
 
-- 음성 합성 속도: CPU 2개에서 onnxruntime 기본 스레드 수를 그대로 두면 과다 할당으로 문장 합성이 재생보다 느려져 문장 사이가 끊긴다. 이미지는 스레드 수를 CPU 수와 같게(`SUPERTONIC_INTRA_OP_THREADS=4`·`SUPERTONIC_INTER_OP_THREADS=1`·`OMP_NUM_THREADS=4`) 고정하고, 워크플로우는 `--cpu 4 --execution-environment gen2` 로 배포한다(`--cpu` 를 바꾸면 스레드 수도 같이 바꾼다). 공개 데모는 `LLM_EARLY_CHUNK=0` 으로 첫 조각을 문장 끝에서만 잘라 문장 중간 끊김을 없앴다(첫 소리는 그만큼 늦어진다). 실측(2026-10-29, 같은 질문 '여권 발급 절차를 알려주세요', `done.timings.speak_ms`): 기본 15.1 s → 스레드 2 6.2 s → 스레드 2 + gen2 4.4~4.7 s, 첫 음성 약 3 s. 재현: 공개 URL 에서 프리셋 첫 상담원에 같은 질문 1회.
+- 음성 합성 속도: CPU 2개에서 onnxruntime 기본 스레드 수를 그대로 두면 과다 할당으로 문장 합성이 재생보다 느려져 문장 사이가 끊긴다. 이미지는 `SUPERTONIC_INTRA_OP_THREADS=2`·`SUPERTONIC_INTER_OP_THREADS=1`·`OMP_NUM_THREADS=2` 로 고정하고, 워크플로우는 `--cpu 2 --execution-environment gen2` 로 배포한다. CPU 4 는 이득이 없었다(스레드 4 는 스레드 2 보다 약 2배 느림, CPU 4 + 스레드 2 는 CPU 2 + 스레드 2 와 같음: 음성 1 초당 합성 0.4~0.5 초, 2026-10-29 각 4회). 공개 데모는 `LLM_EARLY_CHUNK=0` 으로 첫 조각을 문장 끝에서만 잘라 문장 중간 끊김을 없앴다(첫 소리는 그만큼 늦어진다). 실측(2026-10-29, 같은 질문 '여권 발급 절차를 알려주세요', `done.timings.speak_ms`): 기본 15.1 s → 스레드 2 6.2 s → 스레드 2 + gen2 4.4~4.7 s, 첫 음성 약 3 s. 재현: 공개 URL 에서 프리셋 첫 상담원에 같은 질문 1회.
 
 ## 12. 대안: HF Spaces (수동)
 

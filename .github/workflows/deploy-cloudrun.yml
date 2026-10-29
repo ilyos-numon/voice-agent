@@ -82,7 +82,7 @@ jobs:
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
             --port 8765 \
-            --cpu 4 \
+            --cpu 2 \
             --execution-environment gen2 \
             --memory 4Gi \
             --min-instances 0 \
