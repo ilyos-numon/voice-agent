@@ -178,7 +178,7 @@ GH_TOKEN=$(gh auth token -u <gh-user>) gh variable set GCP_RUNTIME_SA --body 'va
 ## 11. 알려진 제약과 대비책
 
 - 로컬 Docker 미검증: 이 개발 머신은 Docker 이미지 pull 이 프록시에서 막혀 컨테이너를 로컬에서 돌려 보지 못했다. 컨테이너 검증은 GitHub Actions `ci` 의 `docker` 작업(빌드 `WARM_MODELS=0`, 스텁 환경으로 실행, `/health` 200·`/docs` 404·uid≠0·`server` 헤더 없음)과 실제 Cloud Run 배포로만 한다.
-- 바인드 주소: 이미지는 `--host ""` 로 듣는다. uvicorn 은 `--host ::` 소켓을 IPv6 전용으로 열어 IPv4 연결을 받지 못하므로, 빈 문자열로 IPv4·IPv6 모든 주소에 각각 바인드한다(IP 리터럴 없음). 로그에 `Uvicorn running on http://:8765` 가 보이면 정상이다.
+- 바인드 주소: 이미지는 `--host=` (빈 값) 로 듣는다. Cloud Run 은 exec 형식 CMD 의 빈 문자열 인자(`"--host", ""`)를 버리므로 한 인자로 쓴다. uvicorn 은 `--host ::` 소켓을 IPv6 전용으로 열어 IPv4 연결을 받지 못하므로, 빈 문자열로 IPv4·IPv6 모든 주소에 각각 바인드한다(IP 리터럴 없음). 로그에 `Uvicorn running on http://:8765` 가 보이면 정상이다.
 - 배포 뒤 10분 안에 `/health` 200 이 되지 않으면 `deploy-cloudrun` 이 실패로 끝난다. `Cloud Run` → `voice-agent` → `Logs` 에서 시작 단계(모델 로드)인지 설정 오류인지 본다.
 - 러너 디스크: 모델이 이미지에 들어가 이미지가 크다. 워크플로가 빌드 전에 러너의 쓰지 않는 도구를 지워 공간을 만든다.
 - 처리되지 않은 예외는 보안 헤더가 붙은 500 `internal_error` 로 바뀌고, 로그에는 예외 종류만 남는다(`docs/security.md` 2절).
