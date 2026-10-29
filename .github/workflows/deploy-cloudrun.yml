@@ -1,0 +1,119 @@
+name: deploy-cloudrun
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency: deploy-cloudrun
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      DEPLOY_SA: ${{ vars.GCP_DEPLOY_SA }}
+      RUNTIME_SA: ${{ vars.GCP_RUNTIME_SA }}
+      DEMO_CONTACT: ${{ vars.DEMO_CONTACT }}
+      SERVICE: voice-agent
+    steps:
+      - name: Check variables
+        id: gate
+        run: |
+          if [ -z "$PROJECT_ID" ] || [ -z "$WIF_PROVIDER" ]; then
+            echo "::notice::GCP_PROJECT_ID or GCP_WIF_PROVIDER is not set; deploy skipped"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$REGION" ] || [ -z "$DEPLOY_SA" ] || [ -z "$RUNTIME_SA" ]; then
+            echo "::error::variables GCP_REGION, GCP_DEPLOY_SA and GCP_RUNTIME_SA must be set"
+            exit 1
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Free runner disk
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Build and push image
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          image="$REGION-docker.pkg.dev/$PROJECT_ID/voice-agent/app:$GITHUB_SHA"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build -t "$image" .
+          docker push "$image"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+
+      - name: Deploy to Cloud Run
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          extra=()
+          if [ -n "$DEMO_CONTACT" ]; then
+            case "$DEMO_CONTACT" in
+              *"|"*)
+                echo "::error::DEMO_CONTACT must not contain '|'"
+                exit 1
+                ;;
+            esac
+            # ^|^ switches the gcloud list delimiter so commas in the value stay literal
+            extra+=(--update-env-vars "^|^DEMO_CONTACT=$DEMO_CONTACT")
+          fi
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --service-account "$RUNTIME_SA" \
+            --allow-unauthenticated \
+            --port 8765 \
+            --cpu 2 \
+            --memory 4Gi \
+            --min-instances 0 \
+            --max-instances 1 \
+            --concurrency 8 \
+            --timeout 300 \
+            --cpu-boost \
+            --set-secrets LLM_API_KEY=llm-api-key:latest \
+            "${extra[@]}" \
+            --quiet
+
+      - name: Wait for health
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          url=$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')
+          if [ -z "$url" ]; then
+            echo "::error::service URL not found"
+            exit 1
+          fi
+          echo "url=$url"
+          echo "SERVICE_URL=$url" >> "$GITHUB_ENV"
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$url/health" || true)
+            echo "poll $i: $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 30
+          done
+          echo "::error::$url/health not 200 within 10 minutes"
+          exit 1
+      - name: Report bucket
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          bucket=$(curl -s "$SERVICE_URL/api/demo" | jq -r .bucket)
+          echo "bucket=$bucket"
+          echo "Deployed: $SERVICE_URL" >> "$GITHUB_STEP_SUMMARY"

@@ -553,3 +553,36 @@ Status: Accepted (ADR-009 의 메모리 상태 위에 데모 모드를 더한다
 - NAT 사용자는 버킷을 나눠 써, 한 사람의 남용으로 같은 네트워크가 잠시 막힐 수 있다.
 - 실제 헤드리스 브라우저 공격은 사람과 구별하지 못하고 한도로만 묶인다.
 - 이 결정이 틀리게 되는 경우: HF 앞단 프록시 hop 수가 1이 아니어서 배포 뒤 버킷 확인이 실패할 때(그때 `DEMO_TRUSTED_PROXY_HOPS` 조정), HF 무료 CPU 정책이 바뀔 때(그때 Oracle 이전), 한도 안의 정상 사용만으로 LLM 비용이 문제가 될 때(그때 상한 축소 또는 Turnstile).
+
+## ADR-014: 호스팅 Cloud Run 으로 변경
+
+Date: 2026-10-29
+Status: Accepted (ADR-013 결정 1 의 호스팅을 대체한다. 한도·식별·봇 대응·LLM 상한 결정은 그대로다)
+
+### Context
+
+ADR-013 에서 고른 Hugging Face Spaces 무료 등급(CPU basic)에 배포했지만 Space 가 시작되지 않았다. 계정의 무료 cpu-basic 할당량이 0 으로 확인됐다(limit=0). 무료 등급으로는 Space 를 띄울 수 없고, 계속 HF 를 쓰려면 유료(PRO) 구독이 필요하다. 이미지는 호스트 중립(일반 Dockerfile, 포트 8765, 환경변수 설정)이라 호스트만 바꾸면 된다.
+
+### Decision
+
+1. **호스팅: Google Cloud Run** (`asia-northeast1`, 서비스 `voice-agent`). `main` push → GitHub Actions `deploy-cloudrun` 이 이미지를 빌드(음성 모델 포함, `WARM_MODELS=1`)해 Artifact Registry 에 올리고 `gcloud run deploy` 한다.
+2. **자원: 2 vCPU·4 GiB, min 0 · max 1 인스턴스, 동시 요청 8, 타임아웃 300초, 시작 CPU 부스트.** max 1 은 필수다 — 비용 상한이자, 한도·LLM 카운터가 메모리에 있어 인스턴스가 둘이면 카운터가 나뉜다.
+3. **인증: 키 없는 Workload Identity Federation.** GitHub OIDC 토큰을 배포 전용 서비스 계정으로 바꾼다. 조건은 이 저장소의 `main` 브랜치뿐이다. GitHub Secret·서비스 계정 키 파일은 없다.
+4. **비밀: `LLM_API_KEY` 는 Secret Manager `llm-api-key`.** 런타임 서비스 계정만 그 비밀 하나를 읽는다(secretAccessor). 배포 계정은 값을 읽지 못한다.
+5. **HF 는 수동 대안으로 남긴다.** `deploy-hf` 는 `workflow_dispatch` 전용.
+
+### 대안과 미채택 이유
+
+| 대안 | 미채택 이유 |
+|------|-------------|
+| HF Spaces PRO | 월 구독료가 고정으로 나간다. 방문이 적은 포트폴리오 데모에는 사용량 과금이 싸다 |
+| Oracle Always Free VM | OS 패치·방화벽·TLS 를 직접 운영해야 하고 공격 표면이 크다 |
+| Cloud Run min-instances 1 | 콜드스타트는 없어지지만 상시 과금된다 |
+| 서비스 계정 키를 GitHub Secret 에 저장 | 장기 키가 유출될 수 있다. WIF 로 키 자체를 없앴다 |
+
+### 결과
+
+- 결제 카드 연결이 필요하다. 예산 알림(₩10,000, 50·90·100%)을 걸어 초과를 알린다(알림일 뿐 자동 차단은 아니다).
+- scale-to-zero: 유휴 뒤 첫 요청은 컨테이너 시작 + 음성 모델 로드만큼 늦다(1~2분 수준, 확인 필요). 인스턴스가 내려가면 한도·LLM 카운터·차단 목록도 비워진다.
+- max 1 인스턴스라 동시 방문자가 많으면 대기열·429 로 막힌다. 늘리려면 카운터 공유 저장소가 먼저 필요하다(ADR-013 결과와 같다).
+- 이 결정이 틀리게 되는 경우: Cloud Run 앞단 프록시 hop 수가 1 이 아니어서 bucket 확인이 실패할 때(그때 `DEMO_TRUSTED_PROXY_HOPS` 조정), 콜드스타트가 데모 체험을 망칠 만큼 길 때(그때 min 1 또는 모델 경량화), 월 비용이 예산을 넘을 때.
