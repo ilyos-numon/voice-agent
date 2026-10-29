@@ -7,8 +7,8 @@
 - **참고 구현**: `app/static/studio/` 의 바닐라 화면(`studio.*`, `workspace.html`, `ws-*.js`, `api.js`)은 계약을 쓰는 한 가지 방법일 뿐이다. 각 기능 끝의 "참고 구현" 줄은 따라 하라는 뜻이 아니라 "이미 이렇게 풀어 본 적이 있다"는 뜻이다.
 - **근거 우선순위**: 코드 > `docs/api.md` > 기타 문서. 둘이 다르면 코드대로 적고 9절 "문서 불일치"에 남겼다. 코드로 확인하지 못한 것은 "미확인"이라고 적었다.
 - **예시 값**: 스텁 서버(`STT_BACKEND=stub TTS_BACKEND=stub LLM_BACKEND=stub`, 포트 8766)에서 실제로 받은 응답이다. `audio_wav_b64` 같은 긴 값만 `...`로 줄였다. 스텁이라 시간 값은 거의 0이다.
-- **기준 커밋**: `65d9ac4` (브랜치 HEAD, 이 문서를 쓴 시점)
-- 줄 번호(`파일:줄`)는 기준 커밋 기준이다.
+- **기준 코드**: 이 문서를 쓴 시점의 브랜치 HEAD
+- 줄 번호(`파일:줄`)는 그 시점 코드 기준이다.
 
 ### 0.1 용어집 (화면 말 ↔ 내부 이름)
 
@@ -1204,7 +1204,7 @@ sequenceDiagram
 - **성적표 낙관성**: 질문이 문서 표현을 그대로 많이 담고(규칙 생성), 음성도 합성 음성이라 실제보다 점수가 높게 나온다. `caveat`을 늘 보여 준다. 구어체 검색 정확도는 top1 0.289(ADR-008·009).
 - **bigram 근거의 한계**: 의미가 같은 바꿔 쓰기는 "근거 없음", 글자만 같고 틀린 문장은 "근거 있음"이 될 수 있다. 요약 켜짐에서 "근거 없음"이 늘 수 있다.
 - **모름 기준**: civil-kiosk와 구어체 46행 한 세트로만 정한 0.20. 짧은 합성 FAQ 프리셋에서는 따로 재지 않았다.
-- **Qwen 구성 E2E**: HANDOFF 기록상 `LLM_BACKEND=qwen`으로 띄운 서버에서는 E2E `test_stream_fallback_audio_per_sentence`가 실패해, 전체 모드 E2E는 `LLM_BACKEND=stub`으로 돈다. Qwen 구성 E2E 기준선은 남은 과제다(원인 미확인, `.ai/HANDOFF.md`). 레거시 경로도 `LLM_BACKEND=qwen`이면 Qwen을 쓴다는 점이 관련이 있을 수 있다(미확인).
+- **Qwen 구성 E2E**: `LLM_BACKEND=qwen`으로 띄운 서버에서는 E2E `test_stream_fallback_audio_per_sentence`가 실패해, 전체 모드 E2E는 `LLM_BACKEND=stub`으로 돈다. Qwen 구성 E2E 기준선은 남은 과제다(원인 미확인). 레거시 경로도 `LLM_BACKEND=qwen`이면 Qwen을 쓴다는 점이 관련이 있을 수 있다(미확인).
 - **`summary_used` 해석**: LLM 실패 시에도 `true`일 수 있다 (9절 1). "요약했다"는 표시로 단정하지 않는다.
 - **스텁 서버**: 음성 입력이 항상 `no_speech`(질문 차감), 음성은 100 ms 무음, 시간 값 거의 0, 성적표 음성 채널 없음. 화면 개발은 스텁으로, 음성·지연 확인은 실제 모델 서버로.
 - **비교·성적표는 같은 슬롯을 쓴다**: 성적표 실행 중에는 대화가 느려지거나 `busy`가 나기 쉽다.
@@ -1224,14 +1224,14 @@ sequenceDiagram
 | 2 | `docs/api.md` 3절 | 요약 시 질문과 "근거 조각 몇 개"가 외부로 | 검색 1위 조각 본문 **1개**만. 대신 시스템 프롬프트에 호칭·모를 때 문구·피할 주제가 함께 간다 | `llm_qwen.py:62-67`, `compose.py:47-58` |
 | 3 | `docs/api.md` 5.11·2.3 | 비교가 "60초 넘게 기다림"이면 `busy` | A·B가 **각각** 따로 최대 60초 기다린다 (최악 약 120초 + 실행) | `compare.py:36-40,93-94` |
 | 4 | `docs/api.md` 3절·5.13 | 성적표 결과는 "24시간" (상담원 TTL 설명과 나란히) | 작업 보존은 `AGENT_TTL_HOURS`와 무관한 고정 86400초 | `jobs.py:61`, `main.py:26` |
-| 5 | `openspec/specs/agent-builder` "Queue and backpressure" | 턴과 성적표 질문이 같은 관문을 쓰고 대기는 최대 `TURN_QUEUE_MAX` | 성적표 질문은 `allow_overflow=True`로 대기 상한을 무시한다 (자리는 차지) | `scorecard.py:182`, `limits.py:112-119` |
+| 5 | 빌더 동작 명세 "대기열·역압" | 턴과 성적표 질문이 같은 관문을 쓰고 대기는 최대 `TURN_QUEUE_MAX` | 성적표 질문은 `allow_overflow=True`로 대기 상한을 무시한다 (자리는 차지) | `scorecard.py:182`, `limits.py:112-119` |
 | 6 | `docs/api.md` 2.2 | 422는 `loc` 마지막 값으로 필드를 안다 | 설정 값 검증 오류는 `loc`가 `["body"]`/`["body","settings"]`라 필드 이름이 `msg`에만 있다 | `agent_schemas.py:54-57`, 실측 |
 | 7 | `docs/decisions.md` ADR-009 | 성적표 질문 "시드는 조각 id 정렬의 sha256" | sha256·시드가 없다. 정렬 + 균등 선택 + 위치 기반 규칙 순환으로 결정적. 음성 잡음 시드는 질문 순번 | `questions.py:77-104`, `scorecard.py:77` |
 | 8 | `docs/decisions.md` ADR-009 | STT·TTS·LLM 인스턴스는 1차 Pipeline 것을 공유 / `AgentStore`가 상담원·세션을 둔다 | STT·TTS만 공유하고 LLM은 턴마다 시스템 프롬프트를 넣어 새로 만든다. 세션은 `SessionBook`이 둔다 | `main.py:25`, `runtime.py:98-125`, `limits.py:31` |
 | 9 | `docs/api.md` 5.9·6절 | `queue`가 "1초 간격 안쪽으로" | 1초 기다림이 끝날 때마다 보낸다 (대략 1초 간격, 엄밀히 "안쪽"은 아님) | `agents.py:76,305-308` |
 | 10 | `docs/api.md` 4절 `MAX_CSV_ROWS` | "유효 행 수 (머리행 제외)" | 빈 행을 뺀 뒤, 중복 질문을 빼기 **전** 수 | `knowledge.py:162` |
 | 11 | `docs/api.md` 전체 | 빌더 API만 다룸 | 레거시 `/health`, `/api/ask`, `/api/ask-audio`, `/api/ask-stream`, `/api/ask-audio-stream`도 살아 있다 (L절) | `routes.py`, `stream.py` |
-| 12 | 프로젝트 `CLAUDE.md` 스택 | "LLM은 스텁" | `LLM_BACKEND=qwen` + 키면 Qwen 요약이 동작한다 (기본은 스텁) | `runner.py:67-80`, `runtime.py:124-125` |
+| 12 | 초기 스택 메모 | "LLM은 스텁" | `LLM_BACKEND=qwen` + 키면 Qwen 요약이 동작한다 (기본은 스텁) | `runner.py:67-80`, `runtime.py:124-125` |
 
 ### 9.2 미확인
 

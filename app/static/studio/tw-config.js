@@ -1,4 +1,4 @@
-// Merged from design/stitch #1 and #3 inline tailwind.config (#3 wins on shared keys).
+// Tailwind config merged from two screen mockups (#1 and #3; #3 wins on shared keys).
 // Fonts use the system Korean font stack (no web font download).
 // Color tokens are CSS variables (space-separated RGB) so a page can override them
 // under html.dark (workspace.html does; studio.html keeps the light values).

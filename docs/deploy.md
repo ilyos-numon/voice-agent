@@ -18,7 +18,7 @@ Cloud Run 은 카드가 필요하지만 사용량 과금이고, 유휴 시 인�
 | 호스트 (2026-10 기준, 확인 필요) | 무료 자원 | 카드 | 비고 |
 |---|---|---|---|
 | **Google Cloud Run (채택)** | 월 180k vCPU-s·360k GiB-s | 필요 | scale-to-zero, 콜드스타트마다 모델 로드 |
-| HF Spaces Docker (대안) | 이 계정 무료 할당량 0 | 불필요(PRO 는 구독) | 10절 |
+| HF Spaces Docker (시도 후 제외) | 이 계정 무료 할당량 0 | 불필요(PRO 는 구독) | 12절 |
 | Oracle Always Free ARM | 2 OCPU·12 GB | 필요 | VM 직접 운영(OS 패치·방화벽·TLS) |
 | Render free | 512 MB | 불필요 | 음성 모델이 안 들어감 |
 
@@ -26,7 +26,7 @@ Cloud Run 은 카드가 필요하지만 사용량 과금이고, 유휴 시 인�
 
 - 자동: `main` 에 push 하면 GitHub Actions `deploy-cloudrun` 이 Workload Identity Federation 으로 GCP 에 로그인(키 없음) → 이미지 빌드(`WARM_MODELS=1`, 음성 모델 포함) → Artifact Registry `voice-agent` 에 push → `gcloud run deploy voice-agent` → 서비스 URL 의 `/health` 가 200 이 될 때까지 최대 10분 기다린 뒤 `bucket` 과 URL 을 찍는다. GitHub Variable `GCP_PROJECT_ID` 나 `GCP_WIF_PROVIDER` 가 없으면 배포 단계는 건너뛴다(실패 아님).
 - 사용자 작업: 3절 1~5단계. 계정·결제·키는 사용자만 만들 수 있다.
-- orchestrator 작업: 4절의 리소스 준비 명령과 5절 GitHub Variables. 사용자가 `gcloud` 로그인을 마친 터미널에서 실행한다.
+- 관리자 작업: 4절의 리소스 준비 명령과 5절 GitHub Variables. `gcloud` 로그인을 마친 터미널에서 실행한다.
 
 ## 3. 사용자 작업 단계
 
@@ -65,7 +65,7 @@ Cloud Run 은 카드가 필요하지만 사용량 과금이고, 유휴 시 인�
 - 키를 채팅·파일·GitHub Variables·Secrets 에 넣지 않는다. 잘못 넣었다면 공급자 콘솔에서 키를 폐기하고 새로 만든다.
 - 확인: `gcloud secrets versions list llm-api-key` 에 `enabled` 버전이 하나 보인다(값은 보이지 않는다).
 
-## 4. 리소스 준비 (orchestrator 가 실행)
+## 4. 리소스 준비 (한 번만 실행)
 
 사용자가 3절 4단계를 마친 터미널에서 실행한다. 이미 있는 리소스는 오류가 나도 넘어간다.
 
@@ -154,7 +154,7 @@ GH_TOKEN=$(gh auth token -u <gh-user>) gh variable set GCP_RUNTIME_SA --body 'va
 - 앱 상한: `DEMO_LLM_DAILY_CALLS`(기본 500 = 서버 전체 하루 질문 상한과 같은 값). UTC 하루 단위로 세고, 넘으면 요약 대신 규칙 문장으로 답한다(오류 아님).
 - 콜드스타트·재배포 뒤에는 카운터가 0 이 된다. 그래서 최악의 경우는 "하루 기동 횟수 × 상한"이다. DashScope(Model Studio) 콘솔의 지출 알림·상한이 최종 방어선이다 — 설정해 둔다.
 - 키가 비었거나 API 가 실패하면 요약 없이 규칙 문장·FAQ 원문으로 답한다. 실패는 화면에서 구분되지 않을 수 있으므로 `Cloud Run` → `voice-agent` → `Logs` 에서 `qwen llm failed` 가 찍히는지 본다(뒤에 예외 종류만 찍히고 키·질문은 찍히지 않는다).
-- 모델은 설정 기본 `qwen3.7-flash`(`LLM_MODEL`). 단가는 README "Run" 절의 공식 가격표 인용을 따른다.
+- 모델은 설정 기본 `qwen3.7-flash`(`LLM_MODEL`). 단가는 README "로컬 실행" 절의 공식 가격표 인용을 따른다.
 
 ## 9. 커스텀 도메인
 
@@ -185,6 +185,6 @@ GH_TOKEN=$(gh auth token -u <gh-user>) gh variable set GCP_RUNTIME_SA --body 'va
 
 - 음성 합성 속도: CPU 2개에서 onnxruntime 기본 스레드 수를 그대로 두면 과다 할당으로 문장 합성이 재생보다 느려져 문장 사이가 끊긴다. 이미지는 `SUPERTONIC_INTRA_OP_THREADS=2`·`SUPERTONIC_INTER_OP_THREADS=1`·`OMP_NUM_THREADS=2` 로 고정하고, 워크플로우는 `--cpu 2 --execution-environment gen2` 로 배포한다. CPU 4 는 이득이 없었다(스레드 4 는 스레드 2 보다 약 2배 느림, CPU 4 + 스레드 2 는 CPU 2 + 스레드 2 와 같음: 음성 1 초당 합성 0.4~0.5 초, 2026-10-29 각 4회). 공개 데모는 `LLM_EARLY_CHUNK=0` 으로 첫 조각을 문장 끝에서만 잘라 문장 중간 끊김을 없앴다(첫 소리는 그만큼 늦어진다). 실측(2026-10-29, 같은 질문 '여권 발급 절차를 알려주세요', `done.timings.speak_ms`): 기본 15.1 s → 스레드 2 6.2 s → 스레드 2 + gen2 4.4~4.7 s, 첫 음성 약 3 s. 재현: 공개 URL 에서 프리셋 첫 상담원에 같은 질문 1회.
 
-## 12. 대안: HF Spaces (수동)
+## 12. HF Spaces 를 쓰지 않는 이유
 
-HF 무료 등급 할당량이 0 이라 HF PRO 구독이 있을 때만 쓴다. Docker SDK Space 를 만들고 Space Secret `LLM_API_KEY`, GitHub Secret `HF_TOKEN`(Space 쓰기 전용 fine-grained 토큰), GitHub Variables `HF_SPACE_ID`·`DEMO_PUBLIC_URL` 을 넣은 뒤 `Actions` → `deploy-hf` → `Run workflow` 로 수동 배포한다(push 로는 돌지 않는다). 번들은 `scripts/build_space_bundle.sh dist/space` 가 만든다.
+Hugging Face Spaces 무료 등급에도 배포해 봤지만 이 계정의 무료 할당량이 0 이라 시작되지 않았고, 그래서 Cloud Run 으로 옮겼다(1절).

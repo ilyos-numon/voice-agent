@@ -231,7 +231,7 @@ ADR-005 의 실측은 긴 답변 1건(faq-020)뿐이라, 문장 단위 스트리
 
 | 대안 | 미채택 이유 |
 |------|-------------|
-| 음성 입력 bench | STT 시간이 TTS 개선 효과와 섞이고, 50개 질문의 녹음 fixture 를 새로 만들어야 한다. STT 는 README "Measured latency" 에 따로 있다 |
+| 음성 입력 bench | STT 시간이 TTS 개선 효과와 섞이고, 50개 질문의 녹음 fixture 를 새로 만들어야 한다. STT 는 README "측정값" 의 음성 입력 표에 따로 있다 |
 | 동시 4요청 | CPU 한 대에서 모델 경합이 결과를 지배해 before/after 차이를 흐린다. 이번 범위 밖(표에 "미측정") |
 | matplotlib 그림 | 의존성 추가 없이 SVG 를 표준 라이브러리로 직접 쓰는 편이 재현이 가볍다 |
 
@@ -244,7 +244,7 @@ ADR-005 의 실측은 긴 답변 1건(faq-020)뿐이라, 문장 단위 스트리
 | 첫 음성까지 (p50 / p95) | 4986.1 / 8220.0 ms | 871.1 / 2214.4 ms | 서버 측. before 는 응답 완료 = total_ms |
 | 전체 응답 (p50 / p95) | 4986.1 / 8220.0 ms | 5402.4 / 11080.3 ms | total_ms (after 는 마지막 문장 WAV 까지) |
 
-재현: README "Latency (before / after)" 의 명령 블록. 원본 환경 수치(docs/vision.md)는 하드웨어·모델·질문이 달라 비교 불가다.
+재현: README "측정값 > 지연: 문장 스트리밍 전후" 의 명령 블록. 원본 환경 수치(docs/vision.md)는 하드웨어·모델·질문이 달라 비교 불가다.
 
 이 결정이 틀리게 되는 경우: LLM 이 실제 API 로 바뀌어 LLM 시간이 TTS 를 넘어설 때(그때 LLM 토큰 스트리밍까지 포함한 bench 로 확장), 실사용에서 동시 요청이 흔할 때(그때 동시성 bench 추가).
 
@@ -269,9 +269,9 @@ Status: Accepted
 ### 구조적 한계 (왜 조기 분할인가)
 
 - 스트리밍 LLM 시간의 대부분은 첫 토큰 대기다. 토큰이 나오기 시작하면 짧은 답은 금방 끝나서, 첫 문장이 끝나는 시점이 LLM 종료 직전이 된다. 그러면 "첫 문장 TTS 를 LLM 생성과 겹치는" 창이 작아, 문장 단위 겹침만으로는 첫 음성이 거의 "LLM 전체 + 첫 문장 TTS" 가 된다.
-- 문장 단위 겹침만 쓴 코드(커밋 d68b578)로 같은 bench 를 돌렸을 때 첫 음성 p50 은 2755 ms 로 허용치 2200 ms 를 넘었다(결과 파일은 이후 측정으로 덮어씀. 재현은 그 커밋에서 README "Latency" 명령 블록).
+- 문장 단위 겹침만 쓴 이전 코드로 같은 bench 를 돌렸을 때 첫 음성 p50 은 2755 ms 로 허용치 2200 ms 를 넘었다(결과 파일은 이후 측정으로 덮어써 저장소에 남아 있지 않다).
 - 조기 분할 후(현재 코드) `bench/results/summary.md`: 첫 음성 p50 / p95 2121.2 / 3100.2 ms, LLM p50 1248.2 ms, 오류 0/150.
-- 남은 한계: 첫 토큰 대기 자체는 줄지 않는다. 첫 음성은 여전히 LLM 스텁 구성(after p50 871.1 ms, `git show 11136b7:bench/results/summary.md`)보다 늦다. 조기 분할로 첫 조각이 문장 중간에서 끊겨 억양이 어색할 수 있고, 오디오 조각 수가 답변 문장 수보다 1개 많을 수 있다(`tests/live` 는 답변 문장 수 1~3, 오디오 조각 ≤ 4 로 확인).
+- 남은 한계: 첫 토큰 대기 자체는 줄지 않는다. 첫 음성은 여전히 LLM 스텁 구성(after p50 871.1 ms, ADR-006 "실측")보다 늦다. 조기 분할로 첫 조각이 문장 중간에서 끊겨 억양이 어색할 수 있고, 오디오 조각 수가 답변 문장 수보다 1개 많을 수 있다(`tests/live` 는 답변 문장 수 1~3, 오디오 조각 ≤ 4 로 확인).
 
 ### 대안과 미채택 이유
 
@@ -304,7 +304,7 @@ ADR-004의 평가 세트(`tests/fixtures/faq_eval.jsonl`, 42건)는 색인된 �
 ### Decision
 
 - 작성: AI 보조(opus 구현 에이전트)가 `scripts/make_blind_brief.py`(시드 20261023) brief — `target_id`·분류·답변 발췌 400자, 인텐트명 없음 — 만 보고 답 있는 질문 38건 + FAQ 범위 밖 none 8건을 썼다. 지침·검수 기준은 `docs/eval-colloquial.md`.
-- 감사: 작성 에이전트와 분리된 AI 리뷰어가 46행 라벨을 감사했다. 지적 FIX 6 + 다듬기 2, 1회 수정 후 재감사 FIX 0. 이후 측정 전에 커밋 `cd36a9e`로 동결했고, 측정 후에는 질문을 고치지 않는다.
+- 감사: 작성 에이전트와 분리된 AI 리뷰어가 46행 라벨을 감사했다. 지적 FIX 6 + 다듬기 2, 1회 수정 후 재감사 FIX 0. 이후 측정 전에 질문을 동결했고, 측정 후에는 질문을 고치지 않는다.
 - 측정: `scripts/eval_colloquial.py`, BM25 기본 파라미터 `search(query, top_k=3)`. none 행은 검색 결과가 빈 목록일 때만 정답. 정확도 임계값 없음(측정 성공만 검사, `tests/data/test_colloquial_eval.py`).
 - 누출 지표: `leak = |B(인텐트명) ∩ B(질문)| / |B(인텐트명)|` (문자 bigram). `leak < 0.34`는 low-leak.
 
@@ -351,7 +351,7 @@ Status: Accepted · Date: 2026-10-23
 
 ### 측정: 모름 기준 값별 결과
 
-재현: `uv run --no-sync python scripts/tune_unknown.py --preset civil-kiosk --eval tests/fixtures/faq_eval_colloquial.jsonl` (`GENERIC_BIGRAMS` 제외 후, 로그 `.ai/tasks/T-20261023-agent-builder/logs/s4-tune-unknown.log`, 재실행 `s4-tune-rerun.log` 도 같은 값)
+재현: `uv run --no-sync python scripts/tune_unknown.py --preset civil-kiosk --eval tests/fixtures/faq_eval_colloquial.jsonl` (`GENERIC_BIGRAMS` 제외 후. 두 번 실행해 같은 값)
 
 | MIN_QUERY_COVERAGE | 센티널 2개 grounded | 답 있는 행 유지 (BM25 top1 정답 11행 중) | none 행 잡음 (8행 중) | 규칙 통과 |
 |---|---|---|---|---|
@@ -367,7 +367,7 @@ Status: Accepted · Date: 2026-10-23
 
 ### 측정: 프리셋 성적표
 
-`scripts/scorecard.py --preset <p> --n 30` (명령 전문과 표는 README "에이전트 빌더 > 성적표"). stub 4종: civil-kiosk 30/30, restaurant 30/30, hospital 30/30, office-policy 29/30, 2회차 비교 4종 모두 REPRO OK. full(whisper·Supertonic, LLM 스텁): civil-kiosk 글자 30/30 음성 28/30 첫 음성 p50/p95 3866.3/7047.0 ms(2회차 3823.7/7694.5, REPRO OK), restaurant 글자 30/30 음성 28/30, 3959.9/4321.9 ms. 음성 오답 4건은 모두 `misheard`(글자로는 맞음).
+`scripts/scorecard.py --preset <p> --n 30` (명령 전문과 표는 README "측정값 > 성적표"). stub 4종: civil-kiosk 30/30, restaurant 30/30, hospital 30/30, office-policy 29/30, 2회차 비교 4종 모두 REPRO OK. full(whisper·Supertonic, LLM 스텁): civil-kiosk 글자 30/30 음성 28/30 첫 음성 p50/p95 3866.3/7047.0 ms(2회차 3823.7/7694.5, REPRO OK), restaurant 글자 30/30 음성 28/30, 3959.9/4321.9 ms. 음성 오답 4건은 모두 `misheard`(글자로는 맞음).
 
 ### 한계
 
@@ -422,7 +422,7 @@ Status: Accepted (ADR-009 의 계약 확인용 `builder.*` 화면과 `share_path
 ### 결과
 
 - 화면에서 상담원 설정 고치기·지우기, 지식 조각 목록, 요약 스위치는 없다(API 로만). 대기열 표시("앞에 N명")는 실제 동시 요청이 필요해 E2E 없이 코드 리뷰로만 확인한다.
-- stub 서버 E2E 회귀에서 빼는 파일이 `test_two_page_voice_real.py` 를 더해 8개가 됐다(README Test 절).
+- stub 서버 E2E 회귀에서 빼는 파일이 `test_two_page_voice_real.py` 를 더해 8개가 됐다(README "테스트" 절).
 - 이 결정이 틀리게 되는 경우: 화면이 세 장 이상으로 늘거나 페이지 사이 상태가 많아질 때(그때 SPA·모듈 재검토), 공개 배포에서 공유 링크가 재시작 뒤에도 살아야 할 때(ADR-009 저장 결정과 함께 재검토).
 
 ## ADR-011: Stitch 최종 화면으로 교체 (탐색 `/studio` → 워크스페이스 `/studio/app?agent=`)
@@ -432,7 +432,7 @@ Status: Accepted (ADR-010 의 두 페이지 화면을 대체한다. `share_path`
 
 ### Context
 
-ADR-010 의 두 페이지 화면은 계약을 확인하는 데는 충분했지만, 상담원 고르기·만들기·대화·자료·설정·성적표·A/B 를 한 흐름으로 보여 주는 화면이 아니었다. Stitch 로 화면 시안 7장을 만들었고(`design/stitch/README.md`), 이 중 무엇을 쓸지, 시안의 스크립트와 수치를 어떻게 다룰지 정해야 했다. 제약은 ADR-010 과 같다: CDN·번들러·새 의존성 없음, 같은 출처, 백엔드 API·`docs/api.md` 는 바꾸지 않음.
+ADR-010 의 두 페이지 화면은 계약을 확인하는 데는 충분했지만, 상담원 고르기·만들기·대화·자료·설정·성적표·A/B 를 한 흐름으로 보여 주는 화면이 아니었다. Stitch 로 화면 시안 7장을 만들었고(시안 파일은 저장소에 두지 않는다), 이 중 무엇을 쓸지, 시안의 스크립트와 수치를 어떻게 다룰지 정해야 했다. 제약은 ADR-010 과 같다: CDN·번들러·새 의존성 없음, 같은 출처, 백엔드 API·`docs/api.md` 는 바꾸지 않음.
 
 ### Decision
 
@@ -442,7 +442,7 @@ ADR-010 의 두 페이지 화면은 계약을 확인하는 데는 충분했지�
 4. **라우트**: `/studio`·`/studio/app` 은 `app/static/studio/` 파일을 돌려주고, `/` 는 `/studio` 로, `/talk` 는 쿼리를 그대로 붙여 `/studio/app` 으로 307 리다이렉트한다. `share_path`(`/talk?agent=<id>`)는 바꾸지 않는다. 옛 링크는 리다이렉트로 살고, 워크스페이스는 `agent_id` 로 자기 공유 주소를 만든다(`docs/api.md` §5.3 이 허용).
 5. **내 상담원 목록**: 서버 목록 API 를 추가하지 않는다. 만들 때 `localStorage` 에 id 를 적고, 열 때 `GET /api/agents/{id}` 로 확인해 404 면 지운다.
 6. **근거 없는 수치·요소 제거**: 백엔드에 출처가 없는 것은 화면에서 뺀다. 가동률·평균 지연·카드별 평균 응답·프리셋 버전·등급 글자, 사용자 아바타·이름, 목소리 미리듣기, 시스템 프롬프트·말하기 속도·온도, "영구 보관으로 저장"·"설정 복제하기"·만료 시뮬레이션·상태 시뮬레이션 버튼, 목(Mock) 토글. 서버 상태는 `GET /health`, 능력은 `GET /api/options` 의 값만 보여 준다. 기능 소개 문구도 `docs/api.md` 에 있는 동작(음성은 서버 밖으로 나가지 않음, 답마다 근거와 시간, 자동 성적표)으로 바꾼다.
-7. **보관**: 쓰지 않는 Stitch 시안 #0·#2·#4·#6 은 `design/stitch/archive/`, 두 페이지 화면은 `app/static/archive/two-page/`, 1차 키오스크는 `app/static/archive/kiosk/`(계속 제공, `/static/archive/kiosk/index.html` 에서 E2E), 두 페이지 E2E 는 `tests/archive/e2e/`(pytest 수집 제외). 파일 내용은 바꾸지 않고 옮기기만 하며, 옛 경로·대체 화면 표는 각 폴더의 `README.md` 에 둔다.
+7. **보관**: 쓰지 않는 Stitch 시안 #0·#2·#4·#6 은 저장소 밖에 보관하고, 두 페이지 화면은 `app/static/archive/two-page/`, 1차 키오스크는 `app/static/archive/kiosk/`(계속 제공, `/static/archive/kiosk/index.html` 에서 E2E), 두 페이지 E2E 는 `tests/archive/e2e/`(pytest 수집 제외). 파일 내용은 바꾸지 않고 옮기기만 하며, 옛 경로·대체 화면 표는 각 폴더의 `README.md` 에 둔다.
 
 ### 대안과 미채택 이유
 
@@ -497,14 +497,14 @@ Status: Accepted (ADR-009 의 검색·답 구성 규칙을 고친다. 근거 0.5
 
 ### 측정
 
-모든 명령은 저장소 루트에서, `STUB="LLM_BACKEND=stub STT_BACKEND=stub TTS_BACKEND=stub"`, `T=.ai/tasks/T-20261027-retrieval-quality`.
+모든 명령은 저장소 루트에서, `STUB="LLM_BACKEND=stub STT_BACKEND=stub TTS_BACKEND=stub"`, `T=$(mktemp -d)`.
 
 | 측정 | 명령 | 변경 전 | 변경 후 |
 |------|------|---------|---------|
 | 프리셋 성적표 text (n=30, 음성 없음) | `$STUB uv run --no-sync python scripts/scorecard.py --preset <p> --n 30 --no-voice --out $T/after-s3/<p>.json` | civil-kiosk 30/30 · restaurant 30/30 · hospital 30/30 · office-policy 29/30 | 30/30 · 30/30 · 30/30 · 29/30 (비악화) |
 | 모름 기준 civil-kiosk | `uv run --no-sync python scripts/tune_unknown.py --preset civil-kiosk --eval tests/fixtures/faq_eval_colloquial.jsonl` | `cov=0.20 kept_answerable=11/11 none_caught=7/8`, `CHOSEN 0.20` | 같음 (0.25 는 `kept_answerable=9/11`) |
 | 단위 테스트 | `uv run pytest tests/unit -q` | 403 passed | 429 passed |
-| 피트니스 12질문 (규칙 경로, 기본 설정) | 변경 전: `git archive e638e16 app` 을 임시 폴더에 풀어 `PYTHONPATH` 앞에 두고 같은 질문 6개 × 두 자료를 `ChunkIndex.search` → `is_unknown` → 답 문장 → `ground_sentences` 로 실행. 변경 후: 같은 방식을 현재 트리로 실행. 서버를 거친 같은 판정은 E2E `tests/e2e/test_fitness_samples.py` | 텍스트 4/6 · CSV 3/6 | 텍스트 6/6 · CSV 6/6 |
+| 피트니스 12질문 (규칙 경로, 기본 설정) | 변경 전: 이 변경 직전 코드의 `app` 을 임시 폴더에 풀어 `PYTHONPATH` 앞에 두고 같은 질문 6개 × 두 자료를 `ChunkIndex.search` → `is_unknown` → 답 문장 → `ground_sentences` 로 실행. 변경 후: 같은 방식을 현재 트리로 실행. 서버를 거친 같은 판정은 E2E `tests/e2e/test_fitness_samples.py` | 텍스트 4/6 · CSV 3/6 | 텍스트 6/6 · CSV 6/6 |
 
 피트니스 판정 기준: 일요일·PT 취소 질문은 기대한 조각이 1위이고 **첫 문장**에 핵심 구절이 있을 것, "수영장 있어요?"는 모름 문장 1개(`네,` 없음), 나머지는 기대 조각 1위 + 답에 핵심 구절, 그리고 첫 문장 근거 있음. 변경 전 텍스트는 일요일 질문(첫 문장이 평일 시간)과 PT 취소 질문이, CSV 는 일요일·PT 취소·수영장 질문이 틀렸다.
 
@@ -526,7 +526,7 @@ Status: Accepted (ADR-009 의 메모리 상태 위에 데모 모드를 더한다
 
 ### Decision
 
-1. **호스팅: Hugging Face Spaces (Docker SDK, CPU basic free)**, 대안 Oracle Always Free ARM. 이미지는 호스트 중립(일반 Dockerfile, 포트 8765, 환경변수 설정). `main` push → `deploy-hf` 가 번들을 `hf upload`. 비교표는 `docs/deploy.md` 1절(2026-10 보도 기준, 확인 필요).
+1. **호스팅: Hugging Face Spaces (Docker SDK, CPU basic free)**, 대안 Oracle Always Free ARM. 이미지는 호스트 중립(일반 Dockerfile, 포트 8765, 환경변수 설정). `main` push 때 GitHub Actions 가 Space 로 올리는 방식. 비교표는 `docs/deploy.md` 1절(2026-10 보도 기준, 확인 필요).
 2. **한도: 직접 구현, 메모리** (`app/demo/quota.py`). 방문자·서버 전체 일일 카운터 + 분당 창 + 환불, Lock 보호 dict. 고정 창 방식은 limits 라이브러리의 fixed-window 패턴을 빌렸다. 기본값 방문자·하루 질문 10·녹음 200초·상담원 2·성적표 2, 서버 전체 질문 500·녹음 2000초·상담원 100·성적표 30, 분당 30 요청.
 3. **식별: IP 솔트 해시 버킷** (IPv6 /64, 프로세스마다 새 솔트, 원 IP 미보관, 쿠키 없음). 클라이언트 주소는 `X-Forwarded-For` 오른쪽 `DEMO_TRUSTED_PROXY_HOPS` 번째(이미지 기본 1).
 4. **봇 대응: 버킷에 묶인 HMAC 요청 토큰 + 스크립트 UA 차단 + 단계적 차단** (`app/demo/guard.py`, 의존성 0). 비용 요청 5종만 토큰·UA 를 본다. 403·413·429 가 300초 안에 10번이면 600→3600→86400초 차단.
@@ -569,7 +569,7 @@ ADR-013 에서 고른 Hugging Face Spaces 무료 등급(CPU basic)에 배포했�
 2. **자원: 2 vCPU·4 GiB, min 0 · max 1 인스턴스, 동시 요청 8, 타임아웃 300초, 시작 CPU 부스트.** max 1 은 필수다 — 비용 상한이자, 한도·LLM 카운터가 메모리에 있어 인스턴스가 둘이면 카운터가 나뉜다.
 3. **인증: 키 없는 Workload Identity Federation.** GitHub OIDC 토큰을 배포 전용 서비스 계정으로 바꾼다. 조건은 이 저장소의 `main` 브랜치뿐이다. GitHub Secret·서비스 계정 키 파일은 없다.
 4. **비밀: `LLM_API_KEY` 는 Secret Manager `llm-api-key`.** 런타임 서비스 계정만 그 비밀 하나를 읽는다(secretAccessor). 배포 계정은 값을 읽지 못한다.
-5. **HF 는 수동 대안으로 남긴다.** `deploy-hf` 는 `workflow_dispatch` 전용.
+5. **HF 배포 경로는 없앴다.** HF 용 워크플로·번들 스크립트는 저장소에서 지웠다.
 
 ### 대안과 미채택 이유
 

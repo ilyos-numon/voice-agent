@@ -1,7 +1,7 @@
 """Build a blind writing brief (answer excerpts without intent names) from a normalized FAQ JSONL.
 
 Usage (from repo root):
-  uv run python scripts/make_blind_brief.py --out .ai/tasks/<T>/logs/blind_brief.jsonl
+  uv run python scripts/make_blind_brief.py --out "$(mktemp -d)/blind_brief.jsonl"
 
 Each output line is {"target_id", "category", "answer"} (answer truncated to 400 chars).
 The FAQ question (intent name) is never written. Same input -> same bytes.
