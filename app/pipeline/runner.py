@@ -76,6 +76,7 @@ def build_llm(settings: Settings) -> LLM:
             base_url=settings.llm_base_url,
             model=settings.llm_model,
             timeout_s=settings.llm_timeout_s,
+            early_chunk=settings.llm_early_chunk,
         )
     raise ValueError(f"unknown LLM_BACKEND: {backend}")
 

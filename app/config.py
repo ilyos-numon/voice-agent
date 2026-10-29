@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     llm_model: str = "qwen3.7-flash"
     llm_timeout_s: float = 8.0
+    llm_early_chunk: bool = True  # False면 첫 조각도 문장 종결에서만 자른다
     agent_ttl_hours: float = 24.0
     max_agents: int = 200
     max_text_chars: int = 20000

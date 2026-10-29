@@ -102,6 +102,7 @@ def _qwen_factory(settings: Settings) -> LLMFactory:
             base_url=settings.llm_base_url,
             model=settings.llm_model,
             timeout_s=settings.llm_timeout_s,
+            early_chunk=settings.llm_early_chunk,
             system_prompt=prompt,
         )
 

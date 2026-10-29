@@ -46,6 +46,7 @@ class QwenLLM:
         timeout_s: float,
         opener: Opener | None = None,
         system_prompt: str = SYSTEM_PROMPT,
+        early_chunk: bool = True,
     ) -> None:
         self._api_key = api_key
         self._system_prompt = system_prompt
@@ -53,6 +54,7 @@ class QwenLLM:
         self._model = model
         self._timeout_s = timeout_s
         self._opener = opener or _default_opener
+        self._early_chunk = early_chunk  # False면 첫 조각도 문장 종결에서만 자른다
 
     def answer(self, query: str, context: list[FaqItem]) -> str:
         if not context:
@@ -110,7 +112,7 @@ class QwenLLM:
         try:
             for delta in self._deltas(query, top):
                 buf += delta
-                if not started:
+                if self._early_chunk and not started:
                     for m in _FIRST_CUT.finditer(buf):
                         head = buf[: m.start()].strip()
                         is_end = buf[m.start() - 1] in _SENTENCE_END

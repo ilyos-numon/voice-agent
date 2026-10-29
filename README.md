@@ -210,6 +210,7 @@ LLM_BACKEND=qwen STT_BACKEND=whisper TTS_BACKEND=supertonic RETRIEVER_BACKEND=bm
 ```
 
 - Model `qwen3.7-flash` (`LLM_MODEL`), OpenAI-compatible endpoint `LLM_BASE_URL` (default: DashScope international, Singapore), timeout `LLM_TIMEOUT_S` (default 8 s). Standard library `urllib` only, no new dependency.
+- `LLM_EARLY_CHUNK` (default `true`): send the first chunk to TTS at a comma/connective pause for lower latency; set `false` to split only at sentence ends so the first sentence is not heard as two broken pieces.
 - Price (official Model Studio pricing page, updated 2026-10-22): Singapore, 0–32K input tokens, input USD 0.03 / output USD 0.13 per 1M tokens.
 - If `LLM_API_KEY` is empty the template stub is used. If the API call fails, times out or returns too little text, the original FAQ answer is spoken instead.
 - Privacy: only the question text and the retrieved public FAQ answer are sent to the API; audio never leaves the machine.
