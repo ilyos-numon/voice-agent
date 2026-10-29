@@ -269,6 +269,7 @@ Dockerfile           컨테이너 (포트 8765)
 
 ## 데이터 출처·라이선스
 
+- 코드: [MIT License](LICENSE). 아래 데이터·모델은 각 출처의 라이선스를 따른다.
 - 공개 FAQ: 경기도 시흥시 챗봇 FAQ 시나리오 (공공데이터포털 15148282, 2025-09-01), 이용허락범위 제한 없음. 전처리 후 570건 + 합성 5건 = 575건. 재생성 `./scripts/prepare_data.sh`.
 - 프리셋 restaurant·hospital·office-policy, 시험 자료(헬스장), 평가 세트, 테스트 음성은 이 저장소에서 만든 합성 데이터(CC0). 실제 업체·사람과 무관하다.
 - 모델: faster-whisper small (MIT), Supertonic 3 (가중치 OpenRAIL-M, 사용 제한 조항 있음·상업 이용 가능, 원 개발 저장소는 2026년 보관 처리되어 `supertone-oss-archive/supertonic-3` 미러 사용).
