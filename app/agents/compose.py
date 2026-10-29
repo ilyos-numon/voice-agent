@@ -70,6 +70,7 @@ def system_prompt(settings: AgentSettings) -> str:
         f"당신은 '{settings.persona_name}'이라는 이름의 음성 상담원입니다.",
         f"말투: {_TONE_DESC[settings.tone]}로 답합니다.",
         f"답은 {n}문장 이내로 합니다.",
+        "첫 문장은 질문에 대한 핵심 답만 30자 안팎으로 짧게 말하고, 부가 설명은 다음 문장으로 넘깁니다.",
         "주어진 자료(근거)에 있는 내용만 말하고, 근거 밖의 내용은 지어내지 않습니다(근거 밖 금지).",
         f"자료에 답이 없으면 '{unknown_sentence(settings)}'라고만 말합니다.",
     ]

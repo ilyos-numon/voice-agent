@@ -134,3 +134,9 @@ def test_friendly_prefix_query_none_keeps_old_behavior() -> None:
     s = AgentSettings(tone="friendly", answer_length="short")
     assert shape_sentences(["요가는 매일 있습니다."], s) == [FRIENDLY_PREFIX + "요가는 매일 있습니다."]
     assert shape_sentences([FRIENDLY_PREFIX + "이미 있음."], s, "이미 있음") == [FRIENDLY_PREFIX + "이미 있음."]
+
+
+def test_system_prompt_keeps_first_sentence_short() -> None:
+    p = system_prompt(AgentSettings())
+    assert "첫 문장은" in p
+    assert "30자" in p
