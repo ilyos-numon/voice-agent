@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import calendar
 import json
 import re
@@ -9,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.demo.guard import TokenSigner
+from app.demo.guard import TokenSigner, is_crawler_ua
 from app.demo.install import install_demo
 from app.demo.quota import DemoQuota
 from app.demo.security import BodyLimitMiddleware, is_exposed
@@ -17,7 +18,7 @@ from app.demo.security import BodyLimitMiddleware, is_exposed
 BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) demo-check"
 CURL_UA = "curl/8"
 C17_KEYS = {
-    "bucket", "contact", "demo_mode", "limits", "notice", "privacy_notice",
+    "bucket", "contact_enc", "demo_mode", "limits", "notice", "privacy_notice",
     "remaining", "reset_at", "token", "token_expires_in",
 }
 T0 = float(calendar.timegm((2026, 10, 28, 12, 0, 30)))
@@ -409,7 +410,9 @@ def test_demo_info_keys_and_values() -> None:
     body = c.get("/api/demo").json()
     assert set(body) == C17_KEYS
     assert body["demo_mode"] is True
-    assert body["contact"] == "demo@example.com"
+    assert "contact" not in body
+    assert body["contact_enc"] == base64.b64encode(b"moc.elpmaxe@omed").decode()
+    assert "demo@example.com" not in json.dumps(body)
     assert set(body["limits"]) == {"turns", "audio_seconds", "agents", "scorecards"}
     assert body["remaining"]["turns"] == body["limits"]["turns"]
     assert re.fullmatch(r"[0-9a-f]{16}", body["bucket"])
@@ -437,7 +440,7 @@ def test_demo_off_no_restrictions() -> None:
     c = client(app)
     body = c.get("/api/demo").json()
     assert set(body) == C17_KEYS
-    assert body["demo_mode"] is False and body["contact"] is None
+    assert body["demo_mode"] is False and body["contact_enc"] is None
     for k in ("limits", "remaining", "reset_at", "bucket", "token", "token_expires_in"):
         assert body[k] is None
     assert body["privacy_notice"].startswith("질문 문장은")
@@ -469,3 +472,124 @@ def test_demo_off_no_csp_other_headers_kept() -> None:
 
 def test_demo_on_has_csp_on_kiosk_404() -> None:
     _assert_headers(client(make_app()).get("/static/archive/kiosk/index.html"))
+
+
+# ---- contact obfuscation / robots / crawler ----
+
+def _decode_contact(enc: str) -> str:
+    return base64.b64decode(enc).decode("utf-8")[::-1]
+
+
+def test_contact_enc_round_trip_non_ascii() -> None:
+    for contact in ("demo@example.com", "https://example.com/문의", "문의 예시"):
+        body = client(make_app(demo_contact=contact)).get("/api/demo").json()
+        assert _decode_contact(body["contact_enc"]) == contact
+        assert contact not in json.dumps(body, ensure_ascii=False)
+
+
+def test_contact_enc_null_when_empty() -> None:
+    assert client(make_app(demo_contact="")).get("/api/demo").json()["contact_enc"] is None
+
+
+def test_robots_txt_both_modes() -> None:
+    for demo in (True, False):
+        r = client(make_app(demo_mode=demo)).get("/robots.txt")
+        assert r.status_code == 200, demo
+        assert r.text == "User-agent: *\nDisallow: /\n"
+        assert r.headers["content-type"].startswith("text/plain")
+
+
+def test_robots_txt_not_in_schema() -> None:
+    assert "/robots.txt" not in make_app(demo_mode=False).openapi()["paths"]
+
+
+def test_x_robots_tag_demo_only() -> None:
+    expected = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+    c = client(make_app())
+    for path in ("/studio", "/api/demo", "/health", "/robots.txt", "/docs"):
+        assert c.get(path).headers["x-robots-tag"] == expected, path
+    off = client(make_app(demo_mode=False))
+    for path in ("/studio", "/api/demo", "/health"):
+        assert "x-robots-tag" not in off.get(path).headers, path
+
+
+CRAWLER_UAS = (
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2)",
+    "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0",
+    "Mozilla/5.0 (compatible; OAI-SearchBot/1.0)",
+    "Claude-User/1.0",
+    "Claude-SearchBot/1.0",
+    "anthropic-ai",
+    "ClaudeBot/1.0",
+    "Mozilla/5.0 (compatible; PerplexityBot/1.0)",
+    "Perplexity-User/1.0",
+    "Mozilla/5.0 (Linux; Android 5.0) AppleWebKit/537.36 (compatible; Bytespider)",
+    "Google-Extended",
+    "cohere-ai",
+    "meta-externalagent/1.1",
+    "meta-externalfetcher/1.1",
+    "Diffbot/0.1",
+    "facebookexternalhit/1.1",
+    "ia_archiver",
+    "Mozilla/5.0 (compatible; Yahoo! Slurp)",
+    "Baiduspider/2.0",
+    "CCBot/2.0",
+    "SomeScraper/1.0",
+    "WebCrawler/3",
+)
+HUMAN_UAS = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36 Edg/130.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 HeadlessChrome/130.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) demo-e2e",
+    "curl/8.7.1",
+    CURL_UA,
+)
+
+
+def test_is_crawler_ua_positive() -> None:
+    assert [ua for ua in CRAWLER_UAS if not is_crawler_ua(ua)] == []
+
+
+def test_is_crawler_ua_negative() -> None:
+    assert [ua for ua in HUMAN_UAS if is_crawler_ua(ua)] == []
+    assert not is_crawler_ua(None)
+    assert not is_crawler_ua("")
+
+
+def test_crawler_blocked_on_pages_and_api() -> None:
+    app = make_app()
+    c = client(app)
+    bot = {"User-Agent": "Mozilla/5.0 (compatible; GPTBot/1.2)"}
+    for path in ("/studio", "/api/demo", "/docs"):
+        r = c.get(path, headers=bot)
+        assert r.status_code == 403, path
+        detail = r.json()["detail"]
+        assert detail["code"] == "crawler_blocked"
+        assert isinstance(detail["message"], str) and detail["message"]
+        _assert_headers(r)
+    assert c.post("/api/agents", json={}, headers=bot).json()["detail"]["code"] == "crawler_blocked"
+
+
+def test_crawler_allowed_on_health_and_robots() -> None:
+    c = client(make_app())
+    bot = {"User-Agent": "ClaudeBot/1.0"}
+    assert c.get("/health", headers=bot).status_code == 200
+    assert c.get("/robots.txt", headers=bot).status_code == 200
+
+
+def test_crawler_block_not_recorded_as_violation() -> None:
+    app = make_app(demo_abuse_threshold=2)
+    c = client(app)
+    bot = {"User-Agent": "Bytespider"}
+    for _ in range(5):
+        assert c.get("/api/demo", headers=bot).status_code == 403
+    assert c.get("/api/demo").status_code == 200
+
+
+def test_crawler_not_blocked_when_demo_off() -> None:
+    c = client(make_app(demo_mode=False))
+    assert c.get("/studio", headers={"User-Agent": "GPTBot/1.2"}).status_code == 200

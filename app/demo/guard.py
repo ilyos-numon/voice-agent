@@ -28,6 +28,14 @@ SCRIPT_UA: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 
+CRAWLER_UA: re.Pattern[str] = re.compile(
+    r"bot|crawl|spider|scrap|slurp"
+    r"|chatgpt-user|oai-searchbot|claude-user|claude-searchbot|anthropic-ai|perplexity"
+    r"|bytespider|google-extended|cohere-ai|meta-externalagent|meta-externalfetcher"
+    r"|diffbot|facebookexternalhit|ia_archiver",
+    re.IGNORECASE,
+)
+
 MAX_BUCKETS = 10000
 _FUTURE_SLACK_S = 60
 _SIG_RE = re.compile(r"[0-9a-f]{32}")
@@ -44,6 +52,13 @@ def is_script_ua(ua: str | None) -> bool:
     if ua is None or not ua.strip():
         return True
     return SCRIPT_UA.search(ua) is not None
+
+
+def is_crawler_ua(ua: str | None) -> bool:
+    """검색·AI 크롤러 UA 인지. 빈 UA·curl 은 여기서 잡지 않는다 (비용 경로의 스크립트 UA 규칙이 맡는다)."""
+    if ua is None:
+        return False
+    return CRAWLER_UA.search(ua) is not None
 
 
 class TokenSigner:

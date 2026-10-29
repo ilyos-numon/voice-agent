@@ -5,6 +5,7 @@ order and the number of violation responses (403/413/429) is kept low until
 the last test, which deliberately triggers a temporary block.
 """
 
+import base64
 import json
 import os
 import re
@@ -22,14 +23,17 @@ if not httpx.get(f"{BASE_URL}/api/demo", timeout=10).json().get("demo_mode"):
 CONTACT = os.environ.get("DEMO_EXPECT_CONTACT", "demo@example.com")
 BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) demo-e2e"
 DEMO_KEYS = {
-    "bucket", "contact", "demo_mode", "limits", "notice", "privacy_notice",
+    "bucket", "contact_enc", "demo_mode", "limits", "notice", "privacy_notice",
     "remaining", "reset_at", "token", "token_expires_in",
 }  # fmt: skip
 BANNER_TEXTS = (
     "데모 버전입니다",
     "완성된 기술이 필요하면 개발자에게 문의해 주세요",
-    CONTACT,
     "외부 AI API로 전송됩니다",
+)
+CRAWLER_UAS = (
+    "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+    "ClaudeBot/1.0",
 )
 PRESET = "preset-restaurant"
 QUESTION = "영업시간이 어떻게 돼요?"
@@ -96,8 +100,15 @@ def check_banner(pg: Page, shot_dir: Path, name: str, width: int, height: int) -
     pg.set_viewport_size({"width": width, "height": height})
     banner = pg.locator("[data-demo-banner]")
     banner.wait_for(state="visible", timeout=30000)
+    assert CONTACT not in pg.content(), "contact is exposed before reveal"
+    reveal = pg.locator("[data-demo-contact] [data-demo-contact-reveal]")
+    expect(reveal).to_have_text(re.compile("연락처 보기"))
+    reveal.click()
+    expect(banner).to_contain_text(CONTACT, timeout=10000)
+    if "@" in CONTACT:
+        assert pg.locator(f'[data-demo-contact] a[href="mailto:{CONTACT}"]').count() >= 1
     text = banner.inner_text()
-    for needle in BANNER_TEXTS:
+    for needle in (*BANNER_TEXTS, CONTACT):
         assert needle in text, f"missing {needle!r} in banner: {text!r}"
     assert pg.locator("[data-demo-remaining]").count() == 1
     hit = pg.evaluate(
@@ -120,7 +131,10 @@ def test_public_demo_info(base_url: str) -> None:
     data = demo_info(base_url)
     assert set(data) == DEMO_KEYS
     assert data["demo_mode"] is True
-    assert data["contact"] == CONTACT
+    assert "contact" not in data
+    assert base64.b64decode(data["contact_enc"]).decode()[::-1] == CONTACT
+    raw = httpx.get(f"{base_url}/api/demo", headers={"User-Agent": BROWSER_UA}, timeout=10)
+    assert CONTACT not in raw.text
     assert re.fullmatch(r"[0-9a-f]{16}", data["bucket"])
     assert re.fullmatch(r"\d+\.[0-9a-f]{32}", data["token"])
     assert data["token_expires_in"] == 1800
@@ -222,6 +236,32 @@ def test_public_spoofed_xff_same_bucket(base_url: str) -> None:
         buckets.add(r.json()["bucket"])
     assert len(buckets) == 1
     assert buckets == {demo_info(base_url)["bucket"]}
+
+
+def test_public_robots_txt(base_url: str) -> None:
+    r = httpx.get(f"{base_url}/robots.txt", headers={"User-Agent": BROWSER_UA}, timeout=10)
+    assert r.status_code == 200
+    assert r.text == "User-agent: *\nDisallow: /\n"
+
+
+def test_public_x_robots_tag(base_url: str) -> None:
+    for path in ("/studio", "/api/demo"):
+        r = httpx.get(f"{base_url}{path}", headers={"User-Agent": BROWSER_UA}, timeout=10)
+        assert r.status_code == 200, path
+        tag = r.headers.get("x-robots-tag", "")
+        assert "noindex" in tag and "nofollow" in tag, f"{path}: {tag!r}"
+
+
+def test_public_crawler_blocked(base_url: str) -> None:
+    for ua in CRAWLER_UAS:
+        headers = {"User-Agent": ua}
+        for path in ("/studio", "/api/demo"):
+            r = httpx.get(f"{base_url}{path}", headers=headers, timeout=10)
+            assert r.status_code == 403, f"{ua} {path} -> {r.status_code}"
+            assert r.json()["detail"]["code"] == "crawler_blocked", f"{ua} {path}"
+        for path in ("/health", "/robots.txt"):
+            r = httpx.get(f"{base_url}{path}", headers=headers, timeout=10)
+            assert r.status_code == 200, f"{ua} {path} -> {r.status_code}"
 
 
 def test_bot_missing_token(base_url: str) -> None:

@@ -8,7 +8,7 @@
 
 | 메서드 | 경로 | 비용 요청(토큰·UA 검사) |
 |---|---|---|
-| GET | `/health` | - |
+| GET | `/health`, `/robots.txt` | - |
 | GET | `/`, `/talk`, `/studio`, `/studio/app` | - |
 | GET | `/static/studio/…` | - |
 | GET | `/api/demo`, `/api/options`, `/api/presets` | - |
@@ -73,6 +73,17 @@
 - 헤드리스 브라우저로 화면을 정상적으로 따라오는 공격은 사람과 구별하지 않는다. 그 비용은 방문자·서버 전체 한도와 LLM 일일 상한으로만 묶인다. 더 강한 사람 확인은 도메인 연결 뒤의 선택 강화책 Cloudflare Turnstile(`docs/deploy.md` 8절, 미구현).
 - `/health`·`/api/demo` 는 비용 요청이 아니라 curl 로도 열린다(상태 확인·버킷 확인용).
 - NAT 뒤 사용자는 한 버킷을 나눈다. 같은 네트워크의 한 사람이 남용하면 다른 사람도 최소 10분 막힐 수 있다(데모라서 받아들임).
+
+## 4.1 연락처 난독화·크롤러 차단 (데모 모드)
+
+| 장치 | 동작 | 막는 것 | 못 막는 것 |
+|---|---|---|---|
+| 연락처 난독화 | `GET /api/demo` 는 `DEMO_CONTACT` 를 평문으로 주지 않고 `contact_enc`(문자 순서를 뒤집은 UTF-8 문자열의 base64)만 준다. 배너는 "연락처 보기" 버튼만 그리고, 누른 뒤에야 풀어서 메일 링크로 바꾼다. 누르기 전에는 평문이 응답·DOM 어디에도 없다 | HTML·JSON 에서 메일 주소 모양을 긁는 수집기, 페이지를 읽기만 하는 AI 에이전트 | 버튼을 누르는 사람·헤드리스 에이전트, 디코딩 방식을 아는 사람(암호화가 아니다) |
+| `robots.txt` | `GET /robots.txt` → `User-agent: *` / `Disallow: /` (두 모드 모두, 화이트리스트 포함) | 규칙을 지키는 검색·AI 크롤러 | 규칙을 무시하는 수집기 |
+| `X-Robots-Tag` | 모든 응답에 `noindex, nofollow, noarchive, nosnippet, noimageindex` | 검색 색인·캐시·미리보기 | 색인 규칙을 무시하는 수집기 |
+| 크롤러 UA 차단 | `User-Agent` 에 bot·crawl·spider·scrap·slurp 또는 ChatGPT-User·OAI-SearchBot·Claude-User·Claude-SearchBot·anthropic-ai·Perplexity·Bytespider·Google-Extended·cohere-ai·meta-externalagent/fetcher·Diffbot·facebookexternalhit·ia_archiver 가 있으면 `/health`·`/robots.txt` 외 모든 경로에서 403 `crawler_blocked`(`app/demo/guard.py` `CRAWLER_UA`). 위반 횟수에는 넣지 않는다 | 스스로 이름을 밝히는 크롤러·AI 에이전트 | UA 를 브라우저로 위장한 수집기. curl 은 여기서 막지 않는다(배포 확인용, 비용 요청은 4절 스크립트 UA 차단) |
+
+- 크롤러 차단 미들웨어는 보안 헤더 바로 안쪽, 화이트리스트보다 바깥에 있어 숨은 경로에도 404 대신 403 을 준다. `DEMO_BOT_GUARD` 와 관계없이 데모 모드면 켜진다.
 
 ## 5. 정보 최소화·식별·개인정보
 

@@ -44,6 +44,38 @@
     return wrap;
   }
 
+  // contact_enc = base64(UTF-8 bytes of the contact with its characters reversed).
+  function decodeContact(enc) {
+    try {
+      var bin = atob(enc);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+      var text = new TextDecoder("utf-8").decode(bytes);
+      return Array.from(text).reverse().join("");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  // Plaintext stays out of the DOM until the visitor clicks the reveal button.
+  function contactRevealNode(enc) {
+    if (typeof enc !== "string" || !enc) { return null; }
+    var wrap = el("span", "", null);
+    wrap.setAttribute("data-demo-contact", "");
+    wrap.appendChild(el("span", "", "문의: "));
+    var btn = el("button", "underline font-semibold", "연락처 보기");
+    btn.type = "button";
+    btn.setAttribute("data-demo-contact-reveal", "");
+    btn.addEventListener("click", function () {
+      var full = contactNode(decodeContact(enc));
+      if (!full) { return; }
+      var revealed = full.lastChild;
+      if (revealed && btn.parentNode) { btn.parentNode.replaceChild(revealed, btn); }
+    });
+    wrap.appendChild(btn);
+    return wrap;
+  }
+
   function hideDocsLinks() {
     var links = document.querySelectorAll('a[href="/docs"]');
     for (var i = 0; i < links.length; i++) { links[i].hidden = true; }
@@ -56,7 +88,7 @@
     var inner = el("div", "max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-2 flex flex-col gap-1 text-[13px] leading-snug", null);
     var top = el("div", "flex flex-wrap items-center gap-x-3 gap-y-1", null);
     top.appendChild(el("span", "font-semibold", info.notice || ""));
-    var contact = contactNode(info.contact);
+    var contact = contactRevealNode(info.contact_enc);
     if (contact) { top.appendChild(contact); }
     var turns = info.remaining && typeof info.remaining.turns === "number" ? info.remaining.turns : null;
     if (turns !== null) {

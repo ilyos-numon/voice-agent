@@ -64,7 +64,7 @@ http://localhost:8765
 - `POST …/scorecards`의 `n`이 10..30 밖
 - `POST …/turns/audio-stream`에 `session_id` 쿼리가 없음
 
-### 2.3 오류 code 전체 (21개)
+### 2.3 오류 code 전체 (22개)
 
 | HTTP | code | 언제 | 화면 처리 예 |
 |---|---|---|---|
@@ -88,6 +88,7 @@ http://localhost:8765
 | 413 | `payload_too_large` | (데모 모드) 요청 본문이 상한 초과(JSON 512 KiB, 녹음 2 MiB) | 내용을 줄인다 |
 | 403 | `demo_token_required` | (데모 모드) `X-Demo-Token`이 없거나 만료·불일치 | `GET /api/demo`로 토큰을 새로 받아 1회 재시도 |
 | 403 | `automated_client` | (데모 모드) 스크립트 도구(curl 등)로 보인 비용 요청 | 브라우저에서 이용 |
+| 403 | `crawler_blocked` | (데모 모드) 검색·AI 크롤러 `User-Agent`(bot·crawl·spider·GPTBot·ClaudeBot 등). `/health`·`/robots.txt` 외 모든 경로. 위반 횟수에 넣지 않는다 | 브라우저에서 이용 |
 | 429 | `temporarily_blocked` | (데모 모드) 비정상 요청이 반복돼 잠시 차단됨. 헤더 `Retry-After`와 `retry_after`(초)가 붙는다 | 나중에 다시 |
 
 스트림 안에서 나는 오류(`no_speech`, `audio_decode_failed`, `internal`)는 HTTP 오류가 아니라 SSE `error` 이벤트로 온다(5절).
@@ -142,7 +143,7 @@ http://localhost:8765
 | 환경변수 | 기본값 | 뜻 |
 |---|---|---|
 | `DEMO_MODE` | false | 데모 모드 켜기 |
-| `DEMO_CONTACT` | `""` | 배너에 보일 연락처 (`GET /api/demo`의 `contact`) |
+| `DEMO_CONTACT` | `""` | 배너에 보일 연락처. 평문으로 내보내지 않고 `GET /api/demo`의 `contact_enc`(난독화)로만 준다 |
 | `DEMO_DAILY_TURNS` | 10 | 방문자당 하루 질문 수 (글자·음성 턴 1, A/B 비교 1회 = 2) |
 | `DEMO_DAILY_AUDIO_SECONDS` | 200 | 방문자당 하루 녹음 초 |
 | `DEMO_DAILY_AGENTS` | 2 | 방문자당 하루 상담원 만들기 수 |
@@ -180,6 +181,12 @@ http://localhost:8765
 1. 요청 토큰: 비용 엔드포인트 5개는 `X-Demo-Token`(`GET /api/demo`의 `token`)이 맞아야 한다. 아니면 403 `demo_token_required`.
 2. 스크립트 차단: 비용 요청의 `User-Agent`가 비었거나 curl·wget·python-requests 같은 도구면 403 `automated_client`.
 3. 반복 위반 차단: 위반이 `DEMO_ABUSE_WINDOW_S` 안에 `DEMO_ABUSE_THRESHOLD`번 쌓이면 `DEMO_BLOCK_STEPS` 순서로 차단하고 429 `temporarily_blocked`(`Retry-After`)를 돌려준다.
+
+크롤러 대응 (데모 모드면 `DEMO_BOT_GUARD`와 관계없이 켜짐):
+
+- `GET /robots.txt`는 두 모드 모두 `text/plain` 본문 `User-agent: *` / `Disallow: /` 를 준다(OpenAPI 스키마에는 없음).
+- 모든 응답에 `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet, noimageindex`가 붙는다(데모 모드만).
+- 크롤러·AI 에이전트 `User-Agent`는 `/health`·`/robots.txt` 외 모든 경로에서 403 `crawler_blocked`. curl 은 크롤러로 보지 않는다(비용 요청만 `automated_client`).
 
 ## 5. 엔드포인트
 
@@ -601,7 +608,7 @@ await fetch(`/api/agents/${agentId}/turns/audio-stream?session_id=${sid}`, {meth
 응답 200 (`DemoOut`, 데모 모드):
 
 ```json
-{"demo_mode": true, "contact": "you@example.com",
+{"demo_mode": true, "contact_enc": "bW9jLmVscG1heGVAb21lZA==",
  "notice": "데모 버전입니다. 기능과 사용량이 제한됩니다. 완성된 기술이 필요하면 개발자에게 문의해 주세요.",
  "privacy_notice": "질문 문장은 답 요약을 위해 외부 AI API로 전송됩니다(음성은 전송하지 않습니다).",
  "limits": {"turns": 10, "audio_seconds": 200, "agents": 2, "scorecards": 2},
@@ -612,7 +619,7 @@ await fetch(`/api/agents/${agentId}/turns/audio-stream?session_id=${sid}`, {meth
 | 필드 | 뜻 |
 |---|---|
 | `demo_mode` | 데모 모드 여부 |
-| `contact` | 연락처 (`DEMO_CONTACT`), 비었으면 `null` |
+| `contact_enc` | 난독화한 연락처 (`DEMO_CONTACT`). 문자 순서를 뒤집은 문자열의 UTF-8 바이트를 표준 base64 로 감싼 값(`base64(reverse(contact))`, 위 예시는 `demo@example.com`). 비었으면 `null`. 평문 `contact` 키는 없다. 배너는 "연락처 보기" 버튼을 누를 때 base64 디코드 → UTF-8 → 문자 순서 뒤집기로 풀어 보여 준다. 암호화가 아니라 수집기 회피용이다 |
 | `notice` | 배너 문구 (고정) |
 | `privacy_notice` | 개인정보 안내 문구 (데모 모드가 아니어도 같은 문자열) |
 | `limits` | 방문자 하루 한도. 키 `turns`·`audio_seconds`·`agents`·`scorecards`. 데모 아니면 `null` |

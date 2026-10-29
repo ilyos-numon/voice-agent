@@ -32,6 +32,7 @@ ERROR_CODES = (
     "demo_token_required",
     "automated_client",
     "temporarily_blocked",
+    "crawler_blocked",
 )
 
 
@@ -81,7 +82,7 @@ def test_every_sse_event_documented(doc: str) -> None:
 
 
 def test_every_error_code_documented(doc: str) -> None:
-    assert len(ERROR_CODES) == 21
+    assert len(ERROR_CODES) == 22
     assert [c for c in ERROR_CODES if f"`{c}`" not in doc] == []
 
 

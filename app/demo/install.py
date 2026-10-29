@@ -11,6 +11,7 @@ from app.demo.routes import demo_router
 from app.demo.security import (
     BodyLimitMiddleware,
     BotGuardMiddleware,
+    CrawlerBlockMiddleware,
     ExposureGuardMiddleware,
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
@@ -48,7 +49,7 @@ def install_demo(app: FastAPI, settings: Settings) -> None:
             app.state.demo_signer = None
             app.state.demo_abuse = None
         # add_middleware 는 마지막에 넣은 것이 가장 바깥이다.
-        # 실행 순서(바깥→안): SecurityHeaders → ExposureGuard → BotGuard → RateLimit → BodyLimit
+        # 실행 순서(바깥→안): SecurityHeaders → CrawlerBlock → ExposureGuard → BotGuard → RateLimit → BodyLimit
         app.add_middleware(
             BodyLimitMiddleware,
             max_json_bytes=settings.demo_max_json_bytes,
@@ -57,6 +58,7 @@ def install_demo(app: FastAPI, settings: Settings) -> None:
         app.add_middleware(RateLimitMiddleware, trusted_hops=hops)
         app.add_middleware(BotGuardMiddleware, trusted_hops=hops)
         app.add_middleware(ExposureGuardMiddleware)
+        app.add_middleware(CrawlerBlockMiddleware)
     else:
         app.state.demo_quota = None
         app.state.demo_signer = None

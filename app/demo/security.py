@@ -1,4 +1,4 @@
-"""데모 미들웨어 (순수 ASGI): 보안 헤더·노출 화이트리스트·봇 가드·분당 창·본문 크기."""
+"""데모 미들웨어 (순수 ASGI): 보안 헤더·크롤러 차단·노출 화이트리스트·봇 가드·분당 창·본문 크기."""
 
 from __future__ import annotations
 
@@ -9,7 +9,13 @@ from typing import Any
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.demo.guard import AbuseTracker, TokenSigner, is_cost_request, is_script_ua
+from app.demo.guard import (
+    AbuseTracker,
+    TokenSigner,
+    is_cost_request,
+    is_crawler_ua,
+    is_script_ua,
+)
 from app.demo.quota import DemoQuota, RateLimited
 
 CSP_TEMPLATE = (
@@ -20,6 +26,7 @@ CSP_TEMPLATE = (
 )
 PERMISSIONS_POLICY = "microphone=(self), camera=(), geolocation=()"
 HSTS_VALUE = "max-age=31536000"
+X_ROBOTS_TAG = "noindex, nofollow, noarchive, nosnippet, noimageindex"
 
 log = logging.getLogger(__name__)
 _DIGITS_RE = re.compile(r"[0-9]+")
@@ -28,6 +35,7 @@ MSG_RATE_LIMITED = "요청이 너무 잦습니다. 잠시 뒤 다시 시도해 �
 MSG_PAYLOAD_TOO_LARGE = "보낸 내용이 너무 큽니다."
 MSG_TOKEN_REQUIRED = "페이지를 새로 고친 뒤 다시 시도해 주세요."
 MSG_AUTOMATED_CLIENT = "브라우저에서 이용해 주세요."
+MSG_CRAWLER_BLOCKED = "자동 수집 프로그램의 접근은 허용되지 않습니다."
 MSG_INTERNAL_ERROR = "서버 오류가 발생했습니다."
 MSG_TEMPORARILY_BLOCKED = (
     "비정상적인 요청이 반복되어 잠시 이용이 제한되었습니다. 나중에 다시 시도해 주세요."
@@ -39,6 +47,7 @@ _ID = r"[^/]+"
 
 ALLOWLIST: list[tuple[frozenset[str], re.Pattern[str]]] = [
     (_GET, re.compile(r"^/health$")),
+    (_GET, re.compile(r"^/robots\.txt$")),
     (_GET, re.compile(r"^/$")),
     (_GET, re.compile(r"^/talk$")),
     (_GET, re.compile(r"^/studio$")),
@@ -113,7 +122,10 @@ def _bucket(scope: Scope, quota: DemoQuota, trusted_hops: int) -> str:
 
 
 class SecurityHeadersMiddleware:
-    """모든 응답에 보안 헤더를 붙이고 `Access-Control-Allow-Origin` 을 지운다. CSP 는 `csp=True` 일 때만."""
+    """모든 응답에 보안 헤더를 붙이고 `Access-Control-Allow-Origin` 을 지운다.
+
+    CSP 와 `X-Robots-Tag` 는 `csp=True`(데모 모드) 일 때만.
+    """
 
     def __init__(
         self, app: ASGIApp, frame_ancestors: str = "'self'", trusted_hops: int = 0, csp: bool = True
@@ -145,6 +157,7 @@ class SecurityHeadersMiddleware:
             b"cross-origin-opener-policy",
             b"strict-transport-security",
             b"access-control-allow-origin",
+            b"x-robots-tag",
         }
 
         started = False
@@ -156,6 +169,7 @@ class SecurityHeadersMiddleware:
                 headers = [(k, v) for k, v in message.get("headers") or [] if bytes(k).lower() not in drop]
                 if self.csp is not None:
                     headers.append((b"content-security-policy", self.csp.encode("latin-1")))
+                    headers.append((b"x-robots-tag", X_ROBOTS_TAG.encode("latin-1")))
                 headers += [
                     (b"x-content-type-options", b"nosniff"),
                     (b"referrer-policy", b"no-referrer"),
@@ -174,6 +188,26 @@ class SecurityHeadersMiddleware:
                 raise
             log.error("unhandled error: %s", type(e).__name__)
             await _send_error(wrapped, 500, "internal_error", MSG_INTERNAL_ERROR)
+
+
+CRAWLER_EXEMPT = frozenset({"/health", "/robots.txt"})
+
+
+class CrawlerBlockMiddleware:
+    """크롤러·AI 에이전트 UA 는 `/health`·`/robots.txt` 외 모든 경로에서 403. 위반으로 기록하지 않는다."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] != "http"
+            or scope.get("path", "") in CRAWLER_EXEMPT
+            or not is_crawler_ua(_header(scope, b"user-agent"))
+        ):
+            await self.app(scope, receive, send)
+            return
+        await _send_error(send, 403, "crawler_blocked", MSG_CRAWLER_BLOCKED)
 
 
 class ExposureGuardMiddleware:

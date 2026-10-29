@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+
 from fastapi import APIRouter, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from app.demo.guard import TokenSigner
@@ -11,12 +14,21 @@ from app.demo.quota import DemoQuota, request_bucket
 NOTICE = "데모 버전입니다. 기능과 사용량이 제한됩니다. 완성된 기술이 필요하면 개발자에게 문의해 주세요."
 PRIVACY_NOTICE = "질문 문장은 답 요약을 위해 외부 AI API로 전송됩니다(음성은 전송하지 않습니다)."
 
+ROBOTS_TXT = "User-agent: *\nDisallow: /\n"
+
 demo_router = APIRouter()
+
+
+def encode_contact(contact: str | None) -> str | None:
+    """연락처를 뒤집어 base64 로 감싼다 (평문 수집 방지용 난독화, 암호화 아님)."""
+    if not contact:
+        return None
+    return base64.b64encode(contact[::-1].encode("utf-8")).decode("ascii")
 
 
 class DemoOut(BaseModel):
     demo_mode: bool
-    contact: str | None
+    contact_enc: str | None
     notice: str
     privacy_notice: str
     limits: dict[str, int] | None
@@ -31,13 +43,13 @@ class DemoOut(BaseModel):
 def demo_info(request: Request) -> DemoOut:
     state = request.app.state
     settings = getattr(state, "demo_settings", None)
-    contact = str(getattr(settings, "demo_contact", "") or "") or None
+    contact_enc = encode_contact(str(getattr(settings, "demo_contact", "") or ""))
     quota = getattr(state, "demo_quota", None)
     bucket = request_bucket(request) if isinstance(quota, DemoQuota) else None
     if not isinstance(quota, DemoQuota) or bucket is None:
         return DemoOut(
             demo_mode=False,
-            contact=contact,
+            contact_enc=contact_enc,
             notice=NOTICE,
             privacy_notice=PRIVACY_NOTICE,
             limits=None,
@@ -51,7 +63,7 @@ def demo_info(request: Request) -> DemoOut:
     signer = signer if isinstance(signer, TokenSigner) else None
     return DemoOut(
         demo_mode=True,
-        contact=contact,
+        contact_enc=contact_enc,
         notice=NOTICE,
         privacy_notice=PRIVACY_NOTICE,
         limits={str(k): v for k, v in quota.limits.items()},
@@ -61,3 +73,8 @@ def demo_info(request: Request) -> DemoOut:
         token=signer.issue(bucket) if signer is not None else None,
         token_expires_in=signer.ttl_s if signer is not None else None,
     )
+
+
+@demo_router.get("/robots.txt", include_in_schema=False)
+def robots_txt() -> PlainTextResponse:
+    return PlainTextResponse(ROBOTS_TXT)
