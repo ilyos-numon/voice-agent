@@ -304,7 +304,7 @@ What this number means: `leak` is the share of the correct intent name's charact
 
 ## Public demo
 
-- URL: (to be filled in after the first deploy succeeds). Hosted on Google Cloud Run (scale to zero, max 1 instance); deploys from `main` via the `deploy-cloudrun` workflow. Step-by-step setup: [docs/deploy.md](docs/deploy.md).
+- URL: https://voice-agent-2z5o3mwsxq-an.a.run.app (the first visit after idle waits for the models to load). Hosted on Google Cloud Run (scale to zero, max 1 instance); deploys from `main` via the `deploy-cloudrun` workflow. Step-by-step setup: [docs/deploy.md](docs/deploy.md).
 - The container image runs with `DEMO_MODE=1`. Locally `DEMO_MODE` is off by default and nothing below applies.
 - Daily limits per visitor (anonymous IP bucket, reset 00:00 UTC; defaults from `app/config.py`, change with Cloud Run environment variables): questions `DEMO_DAILY_TURNS`=10 (an A/B compare counts 2), recording seconds `DEMO_DAILY_AUDIO_SECONDS`=200 (max `DEMO_MAX_AUDIO_SECONDS_PER_TURN`=20 per turn), agents `DEMO_DAILY_AGENTS`=2, scorecards `DEMO_DAILY_SCORECARDS`=2, API requests `DEMO_RATE_PER_MINUTE`=30 per minute.
 - Daily limits for the whole server: `DEMO_GLOBAL_DAILY_TURNS`=500, `DEMO_GLOBAL_DAILY_AUDIO_SECONDS`=2000, `DEMO_GLOBAL_DAILY_AGENTS`=100, `DEMO_GLOBAL_DAILY_SCORECARDS`=30, external LLM calls `DEMO_LLM_DAILY_CALLS`=500. A restart or scale-to-zero resets all counters.
