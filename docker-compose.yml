@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8765:8765"
+    environment:
+      PIPELINE_MODE: stub
+      FAQ_PATH: data/faq/sample_faq.json
+      PORT: "8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8765/health').status==200 else 1)"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
