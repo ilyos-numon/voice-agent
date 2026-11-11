@@ -1,0 +1,93 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #0b1220;
+  color: #f5f7fa;
+  font-family: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font-size: 22px;
+  line-height: 1.5;
+}
+
+.kiosk {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 40px;
+}
+
+h1 { font-size: 40px; margin: 0 0 24px; }
+
+.ask-row { display: flex; gap: 16px; margin-bottom: 24px; }
+
+#question {
+  flex: 1;
+  font-size: 26px;
+  padding: 16px 20px;
+  border: 3px solid #4b5b78;
+  border-radius: 12px;
+  background: #fff;
+  color: #111;
+}
+
+#question:focus { outline: none; border-color: #ffd23f; }
+
+#ask {
+  min-width: 160px;
+  font-size: 28px;
+  font-weight: 700;
+  border: 0;
+  border-radius: 12px;
+  background: #ffd23f;
+  color: #111;
+  cursor: pointer;
+}
+
+#ask:disabled { opacity: 0.6; cursor: wait; }
+
+#mic {
+  width: 88px;
+  font-size: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: #26324a;
+  color: #fff;
+  cursor: pointer;
+}
+
+#mic:disabled { opacity: 0.6; cursor: wait; }
+#mic.recording { background: #d7263d; animation: mic-blink 1s ease-in-out infinite; }
+@keyframes mic-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+#result {
+  border: 3px solid #26324a;
+  border-radius: 16px;
+  padding: 24px 28px;
+  min-height: 200px;
+}
+
+#result p { margin: 0 0 16px; }
+#result[data-state="idle"]::before { content: "질문을 입력하고 묻기를 누르세요."; color: #9fb0cc; }
+#result[data-state="loading"]::before { content: "답변을 준비하고 있어요…"; color: #9fb0cc; }
+#result[data-state="recording"]::before { content: "듣고 있어요… 다시 누르면 전송됩니다."; color: #ff9aa8; }
+#result[data-state="transcribing"]::before { content: "들은 말을 글자로 옮기고 있어요…"; color: #9fb0cc; }
+#result[data-state="error"]::before { content: "다시 시도해 주세요."; color: #ff9aa8; }
+#result:not([data-state="answered"]):not([data-state="speaking"]) > * { display: none; }
+
+#transcript { color: #9fd8ff; }
+#answer { font-size: 28px; font-weight: 600; }
+#source, #timings { color: #c3cddc; font-size: 20px; }
+#first-audio { color: #ffd23f; font-size: 20px; }
+#sentences { margin: 0 0 16px; padding-left: 28px; color: #c3cddc; font-size: 20px; }
+#sentences li.playing { color: #ffd23f; font-weight: 600; }
+#sentences li.played { color: #7d8aa3; }
+#audio { width: 100%; margin-top: 8px; }
+
+#error {
+  margin-top: 24px;
+  padding: 18px 24px;
+  border-radius: 12px;
+  background: #5c1020;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 600;
+}
